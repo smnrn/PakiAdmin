@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { useNavigate } from "../lib/router";
 import { Truck, ParkingCircle, Shield, TrendingUp, MapPin, Clock } from "lucide-react";
 
 export default function LandingPage() {

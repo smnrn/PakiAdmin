@@ -13,7 +13,7 @@ import {
   Clock,
   ChevronLeft
 } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 

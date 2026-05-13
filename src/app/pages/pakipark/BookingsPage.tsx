@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 import {
   Search,
   ChevronDown,
@@ -31,6 +31,23 @@ import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
 // MODAL IMPORT
 import AddNewHub from './components/AddNewHub';
 
+type BookingStatus = 'active' | 'upcoming' | 'completed' | 'cancelled';
+type PaymentStatus = 'paid' | 'pending' | 'partial';
+
+interface BookingRecord {
+  amount: number;
+  date: string;
+  duration: string;
+  id: string;
+  locationName: string;
+  paymentStatus: PaymentStatus;
+  reference: string;
+  status: BookingStatus;
+  timeSlot: string;
+  userName: string;
+  vehiclePlate: string;
+}
+
 export default function BookingsPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -55,7 +72,7 @@ export default function BookingsPage() {
   };
 
   // --- BOOKINGS TABLE DATA ---
-  const initialBookings = [
+  const initialBookings: BookingRecord[] = [
     { id: "1", reference: "PKP-78291", userName: "Mia Sandoval", vehiclePlate: "NCR 1234", locationName: "Greenbelt 3", status: "active", amount: 150, timeSlot: "10:00 AM - 12:00 PM", date: "2024-05-20", duration: "2 hrs", paymentStatus: "paid" },
     { id: "2", reference: "PKP-90122", userName: "Martin Villanueva", vehiclePlate: "WPD 888", locationName: "SM Mall of Asia", status: "upcoming", amount: 450, timeSlot: "02:00 PM - 06:00 PM", date: "2024-05-21", duration: "4 hrs", paymentStatus: "pending" },
     { id: "3", reference: "PKP-11234", userName: "Ethan Flores", vehiclePlate: "ZXC 9901", locationName: "BGC High Street", status: "completed", amount: 310, timeSlot: "08:00 AM - 10:00 AM", date: "2024-05-19", duration: "2 hrs", paymentStatus: "paid" },
@@ -76,7 +93,7 @@ export default function BookingsPage() {
     });
   }, [searchQuery, statusFilter]);
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: BookingStatus) => {
     const styles = {
       active: "bg-emerald-50 text-emerald-600 border-emerald-100",
       upcoming: "bg-blue-50 text-blue-600 border-blue-100",
@@ -86,7 +103,7 @@ export default function BookingsPage() {
     return <Badge className={`uppercase text-[10px] tracking-widest font-bold ${styles[status]}`}>{status}</Badge>;
   };
 
-  const getPaymentStatus = (status) => {
+  const getPaymentStatus = (status: PaymentStatus) => {
     switch (status) {
       case 'paid':
         return <span className="flex items-center gap-1.5 text-emerald-600 font-bold text-xs"><CheckCircle2 size={14} /> Paid</span>;
@@ -147,7 +164,7 @@ export default function BookingsPage() {
                     <span className="font-semibold text-[#1e3d5a]">Settings</span>
                   </button>
                   <div className="border-t border-[#1e3d5a]/10"></div>
-                  <button handleLogout={handleLogout} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-red-50 text-left">
+                  <button onClick={handleLogout} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-red-50 text-left">
                     <LogOut className="w-4 h-4 text-red-500" />
                     <span className="font-semibold text-red-500">Logout</span>
                   </button>

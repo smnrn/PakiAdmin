@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "../../lib/router";
 import {
   Eye,
   EyeOff,
@@ -18,7 +18,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-import pakiAdminLogo from 'figma:asset/201e5c2af3e232861c2832a6f19fc1174871e296.png';
+import { pakiAdminLogo } from '../../lib/assets';
 
 const ADMIN_ROLES = [
   { value: "admin", label: "Administrator", description: "Full system access and management" },
@@ -33,6 +33,7 @@ export default function PakiAdminSignup() {
 
   const [formData, setFormData] = useState({
     name: "",
+    employeeId: "",
     email: "",
     role: "",
     password: "",
@@ -51,7 +52,7 @@ export default function PakiAdminSignup() {
     setError(null);
 
     // Validate all fields
-    if (!formData.name || !formData.email || !formData.role || !formData.password || !formData.confirmPassword) {
+    if (!formData.name || !formData.employeeId || !formData.email || !formData.role || !formData.password || !formData.confirmPassword) {
       setError("All fields are required. Please complete the form.");
       return;
     }
@@ -90,6 +91,7 @@ export default function PakiAdminSignup() {
       // 3. Notify super-admin for approval
       console.log('Signup request submitted:', {
         name: formData.name,
+        employeeId: formData.employeeId,
         email: formData.email,
         role: formData.role,
       });
@@ -402,6 +404,7 @@ export default function PakiAdminSignup() {
                           setSignupSuccess(false);
                           setFormData({
                             name: "",
+                            employeeId: "",
                             email: "",
                             role: "",
                             password: "",

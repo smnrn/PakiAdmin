@@ -1,5 +1,5 @@
 import { useState, useRef, cloneElement, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 import {
   User,
   Mail,
@@ -26,6 +26,14 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 
+function readStoredValue(key: string, fallback: string) {
+  if (typeof window === 'undefined') {
+    return fallback;
+  }
+
+  return localStorage.getItem(key) || fallback;
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -37,17 +45,21 @@ export default function ProfilePage() {
   const [showPass, setShowPass] = useState({ current: false, new: false, profile: false });
   const [isEditing, setIsEditing] = useState(false);
 
-  const [profilePicture, setProfilePicture] = useState<string | null>(
-    localStorage.getItem('pakiship_profilePicture')
-  );
+  const [profilePicture, setProfilePicture] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    return localStorage.getItem('pakiship_profilePicture');
+  });
 
   const [formData, setFormData] = useState({
-    adminId: localStorage.getItem('pakiship_adminId') || 'ADM-2026-1001',
-    name: localStorage.getItem('pakiship_name') || 'Juan Dela Cruz',
-    email: localStorage.getItem('pakiship_email') || 'juandelacruz@pakiadmin.com',
-    phone: localStorage.getItem('pakiship_phone') || '09123456789',
-    address: localStorage.getItem('pakiship_address') || 'Espana Blvd., Sampaloc, Manila',
-    dob: localStorage.getItem('pakiship_dob') || '2005-06-01',
+    adminId: readStoredValue('pakiship_adminId', 'ADM-2026-1001'),
+    name: readStoredValue('pakiship_name', 'Juan Dela Cruz'),
+    email: readStoredValue('pakiship_email', 'juandelacruz@pakiadmin.com'),
+    phone: readStoredValue('pakiship_phone', '09123456789'),
+    address: readStoredValue('pakiship_address', 'Espana Blvd., Sampaloc, Manila'),
+    dob: readStoredValue('pakiship_dob', '2005-06-01'),
     password: '••••••••••••', 
   });
 

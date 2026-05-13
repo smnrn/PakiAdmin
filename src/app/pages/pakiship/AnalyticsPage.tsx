@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 import {
   TrendingUp,
   TrendingDown,
@@ -27,11 +27,26 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 
+type AnalyticsRange = 'Today' | 'Last 7 Days' | 'Last 30 Days' | 'Year to Date';
+
+interface AnalyticsPoint {
+  month: string;
+  revenue: number;
+}
+
+interface AnalyticsSummary {
+  cancelled: string;
+  chartData: AnalyticsPoint[];
+  delivered: string;
+  pending: string;
+  revenue: string;
+}
+
 export default function AnalyticsPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [dateRange, setDateRange] = useState("Year to Date");
+  const [dateRange, setDateRange] = useState<AnalyticsRange>('Year to Date');
 
   const placeholderName = "Juan Dela Cruz";
 
@@ -40,7 +55,7 @@ export default function AnalyticsPage() {
     navigate('/');
   };
 
-  const dataMap = {
+  const dataMap: Record<AnalyticsRange, AnalyticsSummary> = {
     "Today": {
       revenue: "₱482K",
       delivered: "1,240",
@@ -104,7 +119,11 @@ export default function AnalyticsPage() {
   };
 
   const activeData = dataMap[dateRange] || dataMap["Year to Date"];
-  const maxRevenue = useMemo(() => Math.max(...activeData.chartData.map(d => d.revenue)), [activeData]);
+  const dateRanges = Object.keys(dataMap) as AnalyticsRange[];
+  const maxRevenue = useMemo(
+    () => Math.max(...activeData.chartData.map((dataPoint) => dataPoint.revenue)),
+    [activeData],
+  );
 
   const driverWorkforce = [
     { type: 'Relay Drivers', count: 428, growth: '+12%', icon: <Bike className="w-5 h-5" />, sub: 'Tricycle/Jeepney' },
@@ -122,8 +141,8 @@ export default function AnalyticsPage() {
 
   const handleExport = () => {
     const headers = ["Period", "Revenue (PHP)"];
-    const rows = activeData.chartData.map(d => [d.month, d.revenue]);
-    let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+    const rows = activeData.chartData.map((dataPoint) => [dataPoint.month, dataPoint.revenue]);
+    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map((entry) => entry.join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -203,7 +222,7 @@ export default function AnalyticsPage() {
                   <Filter className="w-3 h-3 ml-2 opacity-50" />
                 </Button>
                 <div className="absolute right-0 mt-2 w-48 bg-white border border-[#39B5A8]/10 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30 overflow-hidden">
-                  {Object.keys(dataMap).map((range) => (
+                  {dateRanges.map((range) => (
                     <button 
                       key={range} 
                       onClick={() => setDateRange(range)}
@@ -374,7 +393,15 @@ export default function AnalyticsPage() {
   );
 }
 
-function StatCard({ label, value, trend, trendUp, icon }: any) {
+interface StatCardProps {
+  icon: React.ReactNode;
+  label: string;
+  trend: string;
+  trendUp: boolean;
+  value: string;
+}
+
+function StatCard({ label, value, trend, trendUp, icon }: StatCardProps) {
   return (
     <div className="bg-white p-6 rounded-[2rem] border border-[#39B5A8]/10 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
       <div className="flex items-center justify-between mb-4 relative z-10">

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 import {
   BarChart3,
   MapPin,
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAuth } from '../../contexts/AuthContext';
-import pakiParkLogo from 'figma:asset/feccb20cc5f5015bfba988559af29b31524bf965.png';
+import { pakiParkLogo } from '../../lib/assets';
 
 interface PakiParkSidebarProps {
   activeTab: 'dashboard' | 'bookings' | 'reports' | 'profile' | 'settings';

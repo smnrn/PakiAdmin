@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useState, type ReactNode } from "react";
+import { useNavigate } from "../../lib/router";
 import {
   User,
   Search,
@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 
-import pakiAdminLogo from 'figma:asset/201e5c2af3e232861c2832a6f19fc1174871e296.png';
+import { pakiAdminLogo } from '../../lib/assets';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
@@ -605,7 +605,15 @@ export default function SuperAdminDashboardPage() {
 
 // Helper Components
 
-function NavButton({ active, onClick, icon, label, badge }: any) {
+interface NavButtonProps {
+  active: boolean;
+  badge?: string;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}
+
+function NavButton({ active, onClick, icon, label, badge }: NavButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -628,7 +636,14 @@ function NavButton({ active, onClick, icon, label, badge }: any) {
   );
 }
 
-function SummaryCard({ icon, label, value, color }: any) {
+interface SummaryCardProps {
+  color: 'amber' | 'green' | 'red';
+  icon: ReactNode;
+  label: string;
+  value: number;
+}
+
+function SummaryCard({ icon, label, value, color }: SummaryCardProps) {
   const colors = {
     amber: 'bg-amber-100 text-amber-600',
     green: 'bg-green-100 text-green-600',
@@ -648,7 +663,15 @@ function SummaryCard({ icon, label, value, color }: any) {
   );
 }
 
-function FilterButton({ active, onClick, label, count, color }: any) {
+interface FilterButtonProps {
+  active: boolean;
+  color?: 'amber' | 'green' | 'red';
+  count: number;
+  label: string;
+  onClick: () => void;
+}
+
+function FilterButton({ active, onClick, label, count, color }: FilterButtonProps) {
   const colors = {
     amber: 'bg-amber-500',
     green: 'bg-green-500',

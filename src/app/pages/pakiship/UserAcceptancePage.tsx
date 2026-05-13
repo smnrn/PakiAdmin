@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 import {
   Search,
   User,
@@ -22,8 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
-import pakiShipLogo from 'figma:asset/d0a94c34a139434e20f5cb9888d8909dd214b9e7.png';
-import pakiParkLogo from 'figma:asset/feccb20cc5f5015bfba988559af29b31524bf965.png';
+import { pakiParkLogo, pakiShipLogo } from '../../lib/assets';
 
 type ApplicantType = 'driver' | 'business';
 type StatusType = 'pending' | 'approved' | 'rejected';

@@ -1,5 +1,5 @@
 import { useState, useRef, cloneElement, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 import {
   User,
   Mail,
@@ -26,6 +26,14 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
 
+function readStoredValue(key: string, fallback: string) {
+  if (typeof window === 'undefined') {
+    return fallback;
+  }
+
+  return localStorage.getItem(key) || fallback;
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -37,17 +45,21 @@ export default function ProfilePage() {
   const [showPass, setShowPass] = useState({ current: false, new: false, profile: false });
   const [isEditing, setIsEditing] = useState(false);
 
-  const [profilePicture, setProfilePicture] = useState<string | null>(
-    localStorage.getItem('pakipark_profilePicture')
-  );
+  const [profilePicture, setProfilePicture] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    return localStorage.getItem('pakipark_profilePicture');
+  });
 
   const [formData, setFormData] = useState({
-    adminId: localStorage.getItem('pakipark_adminId') || 'ADM-2026-1001',
-    name: localStorage.getItem('pakipark_name') || 'Juan Dela Cruz',
-    email: localStorage.getItem('pakipark_email') || 'juandelacruz@pakiadmin.com',
-    phone: localStorage.getItem('pakipark_phone') || '09123456789',
-    address: localStorage.getItem('pakipark_address') || 'Greenbelt 3, Makati City, Manila',
-    dob: localStorage.getItem('pakipark_dob') || '2005-06-01',
+    adminId: readStoredValue('pakipark_adminId', 'ADM-2026-1001'),
+    name: readStoredValue('pakipark_name', 'Juan Dela Cruz'),
+    email: readStoredValue('pakipark_email', 'juandelacruz@pakiadmin.com'),
+    phone: readStoredValue('pakipark_phone', '09123456789'),
+    address: readStoredValue('pakipark_address', 'Greenbelt 3, Makati City, Manila'),
+    dob: readStoredValue('pakipark_dob', '2005-06-01'),
     password: '••••••••••••', 
   });
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 import {
   DollarSign,
   TrendingUp,
@@ -26,11 +26,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { useAuth } from '../../contexts/AuthContext';
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
 
+type DateRange = 'Today' | 'Last 7 Days' | 'Last 30 Days' | 'Year to Date';
+
 export default function ReportsPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [dateRange, setDateRange] = useState("Year to Date");
+  const [dateRange, setDateRange] = useState<DateRange>('Year to Date');
 
   const displayName = "Juan Dela Cruz";
 
@@ -104,6 +106,7 @@ export default function ReportsPage() {
   };
 
   const activeData = dataMap[dateRange] || dataMap["Year to Date"];
+  const dateRanges = Object.keys(dataMap) as DateRange[];
   const maxRevenue = useMemo(() => Math.max(...activeData.chartData.map(d => d.revenue)), [activeData]);
 
   const vehicleDistribution = [
@@ -204,7 +207,7 @@ export default function ReportsPage() {
                   <Filter className="w-3 h-3 ml-2 opacity-50" />
                 </Button>
                 <div className="absolute right-0 mt-2 w-48 bg-white border border-[#1e3d5a]/10 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30 overflow-hidden">
-                  {Object.keys(dataMap).map((range) => (
+                  {dateRanges.map((range) => (
                     <button 
                       key={range} 
                       onClick={() => setDateRange(range)}

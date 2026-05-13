@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 import {
   BarChart3,
   Truck,
@@ -9,7 +9,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import pakiShipLogo from 'figma:asset/d0a94c34a139434e20f5cb9888d8909dd214b9e7.png';
+import { pakiShipLogo } from '../../lib/assets';
 
 interface PakiShipSidebarProps {
   activeTab: 'dashboard' | 'shipments' | 'analytics' | 'tracking' | 'profile' | 'settings' | 'user-acceptance';

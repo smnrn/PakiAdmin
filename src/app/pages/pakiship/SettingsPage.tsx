@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 import {
   Settings,
   LogOut,
   CheckCircle2,
   Users,
+  UserCheck,
   User,
   Search,
   ChevronDown,
@@ -16,48 +17,79 @@ import {
   ShieldAlert,
   Edit3,
   UserMinus,
-  Bell,
-  MessageSquare,
-  Fingerprint,
-  Globe,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
-import { Switch } from '../../components/ui/switch';
+import { NotificationMenuButton } from '../../components/settings/NotificationMenuButton';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
+import { NotificationPreferencesPanel } from '../../components/settings/NotificationPreferencesPanel';
 
-// --- SUB-COMPONENT: PREFERENCE TOGGLE ---
-const PreferenceToggle = ({ icon, title, description, checked, onChange }) => (
-  <div className="flex items-center justify-between p-6 bg-[#F0F9F8]/40 rounded-[1.8rem] border border-[#39B5A8]/5 hover:border-[#39B5A8]/20 transition-all group">
-    <div className="flex items-center gap-4">
-      <div className="p-3 bg-white rounded-2xl shadow-sm border border-[#39B5A8]/10 group-hover:scale-110 transition-transform">
-        {icon}
-      </div>
-      <div>
-        <p className="font-bold text-[#041614]">{title}</p>
-        <p className="text-xs text-[#1A5D56]/60 font-medium max-w-[200px] leading-relaxed">
-          {description}
-        </p>
-      </div>
-    </div>
-    <Switch 
-      checked={checked} 
-      onCheckedChange={onChange}
-      className="data-[state=checked]:bg-[#39B5A8]"
-    />
-  </div>
-);
+interface UserRecord {
+  email: string;
+  id: number;
+  name: string;
+  role: string;
+  status: 'Active' | 'Inactive';
+}
+
+interface EditableUser {
+  email: string;
+  name: string;
+  role: string;
+}
+
+type SettingsTab = 'team' | 'requests';
+type RequestStatus = 'pending' | 'approved' | 'rejected';
+
+interface AdminRequestRecord {
+  email: string;
+  id: string;
+  name: string;
+  rejectedReason?: string;
+  requestDate: string;
+  requestedRole: string;
+  status: RequestStatus;
+}
+
+const INITIAL_ADMIN_REQUESTS: AdminRequestRecord[] = [
+  {
+    id: 'REQ-201',
+    name: 'Marco Villanueva',
+    email: 'marco.villanueva@pakiadmin.ph',
+    requestedRole: 'Limited Access',
+    requestDate: '2026-05-10',
+    status: 'pending',
+  },
+  {
+    id: 'REQ-202',
+    name: 'Angela Bautista',
+    email: 'angela.bautista@pakiadmin.ph',
+    requestedRole: 'Full Access',
+    requestDate: '2026-05-11',
+    status: 'pending',
+  },
+  {
+    id: 'REQ-203',
+    name: 'Luis Mendoza',
+    email: 'luis.mendoza@pakiadmin.ph',
+    requestedRole: 'View Only',
+    requestDate: '2026-05-12',
+    status: 'pending',
+  },
+];
 
 export default function SettingsPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
   // --- STATE LOGIC ---
+  const [activeTab, setActiveTab] = useState<SettingsTab>('team');
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
   
   // Modal States
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -70,19 +102,14 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState(""); 
 
   // User Management States
-  const [currentUser, setCurrentUser] = useState(null);
-  const [newUser, setNewUser] = useState({ name: "", email: "", role: "View Only" });
+  const [currentUser, setCurrentUser] = useState<UserRecord | null>(null);
+  const [newUser, setNewUser] = useState<EditableUser>({ name: "", email: "", role: "View Only" });
+  const [adminRequests, setAdminRequests] = useState<AdminRequestRecord[]>(INITIAL_ADMIN_REQUESTS);
+  const [requestToReject, setRequestToReject] = useState<AdminRequestRecord | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
   const roleOptions = ["No Access", "View Only", "Limited Access", "Full Access", "Super Admin"];
 
-  // Account Preference States
-  const [preferences, setPreferences] = useState({
-    emailNotifications: true,
-    smsUpdates: true,
-    twoFactor: true,
-    publicProfile: true
-  });
-
-  const [users, setUsers] = useState([
+  const [users, setUsers] = useState<UserRecord[]>([
     { id: 1, name: "Juan Dela Cruz", email: "juandelacruz@pakiadmin.ph", role: "Super Admin", status: "Active" },
     { id: 2, name: "Martha Burgos", email: "marthaburgos@pakiadmin.ph", role: "Full Access", status: "Active" },
     { id: 3, name: "Rhea Rivera", email: "rhearivera@pakiadmin.ph", role: "View Only", status: "Inactive" },
@@ -92,11 +119,7 @@ export default function SettingsPage() {
   ]);
 
   // --- ACTIONS ---
-  const togglePreference = (key) => {
-    setPreferences(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const triggerSuccess = (msg) => {
+  const triggerSuccess = (msg: string) => {
     setSuccessMessage(msg);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
@@ -107,12 +130,21 @@ export default function SettingsPage() {
     navigate('/');
   };
 
-  const deactivateUser = (id) => {
+  const handleOpenNotificationPreferences = () => {
+    setIsNotificationMenuOpen(false);
+    setIsUserMenuOpen(false);
+    document.getElementById('pakiship-notification-preferences')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+
+  const deactivateUser = (id: number) => {
     setUsers(users.map(u => u.id === id ? { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' } : u));
     triggerSuccess("Staff access status updated.");
   };
 
-  const openEditModal = (user) => {
+  const openEditModal = (user: UserRecord) => {
     setCurrentUser({ ...user });
     setShowEditUserModal(true);
   };
@@ -126,6 +158,10 @@ export default function SettingsPage() {
   };
 
   const handleUpdateUser = () => {
+    if (!currentUser) {
+      return;
+    }
+
     setUsers(users.map(u => u.id === currentUser.id ? currentUser : u));
     triggerSuccess(`Staff profile updated.`);
     setShowEditUserModal(false);
@@ -151,6 +187,51 @@ export default function SettingsPage() {
   };
 
   const placeholderName = "Juan Dela Cruz";
+  const pendingAdminRequests = adminRequests.filter((request) => request.status === 'pending');
+
+  const handleApproveRequest = (requestId: string) => {
+    setAdminRequests((prev) =>
+      prev.map((request) =>
+        request.id === requestId
+          ? {
+              ...request,
+              status: 'approved',
+            }
+          : request,
+      ),
+    );
+    triggerSuccess('Admin request approved.');
+  };
+
+  const handleOpenRejectModal = (request: AdminRequestRecord) => {
+    setRequestToReject(request);
+    setRejectionReason('');
+  };
+
+  const handleCloseRejectModal = () => {
+    setRequestToReject(null);
+    setRejectionReason('');
+  };
+
+  const handleConfirmReject = () => {
+    if (!requestToReject || !rejectionReason.trim()) {
+      return;
+    }
+
+    setAdminRequests((prev) =>
+      prev.map((request) =>
+        request.id === requestToReject.id
+          ? {
+              ...request,
+              status: 'rejected',
+              rejectedReason: rejectionReason.trim(),
+            }
+          : request,
+      ),
+    );
+    triggerSuccess('Admin request rejected with reason.');
+    handleCloseRejectModal();
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#F0F9F8] font-sans text-[#1A5D56] relative">
@@ -201,6 +282,65 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {requestToReject && (
+        <div className="fixed inset-0 z-[115] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-[#041614]/55 backdrop-blur-sm"
+            onClick={handleCloseRejectModal}
+          ></div>
+          <Card className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl border-none animate-in zoom-in-95 duration-200">
+            <CardContent className="p-8">
+              <div className="flex items-start justify-between mb-6 gap-4">
+                <div>
+                  <h3 className="text-xl font-bold text-[#041614]">Reject Admin Request</h3>
+                  <p className="text-sm text-[#1A5D56]/60 font-medium mt-1">
+                    Provide a rejection reason before declining {requestToReject.name}&apos;s signup request.
+                  </p>
+                </div>
+                <button
+                  onClick={handleCloseRejectModal}
+                  className="p-2 hover:bg-[#F0F9F8] rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-[#1A5D56]/50 uppercase tracking-widest ml-1">
+                  Rejection Reason
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Explain why this request cannot be approved right now..."
+                  className="w-full min-h-32 rounded-2xl border border-[#39B5A8]/15 bg-[#F0F9F8]/40 px-4 py-3 outline-none focus:bg-white focus:border-[#39B5A8] transition-all text-sm font-medium resize-none"
+                />
+                <p className="text-xs text-[#1A5D56]/55 font-medium">
+                  This reason will be shared with the applicant by the Super-Admin.
+                </p>
+              </div>
+
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleCloseRejectModal}
+                  className="rounded-xl border-[#39B5A8]/15 text-[#1A5D56]"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirmReject}
+                  disabled={!rejectionReason.trim()}
+                  className="rounded-xl bg-red-500 hover:bg-red-600 text-white disabled:opacity-50"
+                >
+                  Confirm Rejection
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* --- ADD/EDIT MODALS --- */}
       {(showAddUserModal || showEditUserModal) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -214,15 +354,15 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-[#1A5D56]/40 uppercase ml-1">Full Name</label>
-                  <input type="text" className="w-full px-4 py-3 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8]/30 outline-none focus:bg-white transition-all font-bold" value={showAddUserModal ? newUser.name : currentUser?.name} onChange={(e) => showAddUserModal ? setNewUser({...newUser, name: e.target.value}) : setCurrentUser({...currentUser, name: e.target.value})} />
+                  <input type="text" className="w-full px-4 py-3 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8]/30 outline-none focus:bg-white transition-all font-bold" value={showAddUserModal ? newUser.name : currentUser?.name} onChange={(e) => showAddUserModal ? setNewUser({...newUser, name: e.target.value}) : setCurrentUser(currentUser ? {...currentUser, name: e.target.value} : null)} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-[#1A5D56]/40 uppercase ml-1">Work Email</label>
-                  <input type="email" className="w-full px-4 py-3 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8]/30 outline-none focus:bg-white transition-all font-bold" value={showAddUserModal ? newUser.email : currentUser?.email} onChange={(e) => showAddUserModal ? setNewUser({...newUser, email: e.target.value}) : setCurrentUser({...currentUser, email: e.target.value})} />
+                  <input type="email" className="w-full px-4 py-3 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8]/30 outline-none focus:bg-white transition-all font-bold" value={showAddUserModal ? newUser.email : currentUser?.email} onChange={(e) => showAddUserModal ? setNewUser({...newUser, email: e.target.value}) : setCurrentUser(currentUser ? {...currentUser, email: e.target.value} : null)} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-[#1A5D56]/40 uppercase ml-1">System Role</label>
-                  <select className="w-full px-4 py-3 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8]/30 outline-none focus:bg-white transition-all font-bold appearance-none" value={showAddUserModal ? newUser.role : currentUser?.role} onChange={(e) => showAddUserModal ? setNewUser({...newUser, role: e.target.value}) : setCurrentUser({...currentUser, role: e.target.value})}>
+                  <select className="w-full px-4 py-3 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8]/30 outline-none focus:bg-white transition-all font-bold appearance-none" value={showAddUserModal ? newUser.role : currentUser?.role} onChange={(e) => showAddUserModal ? setNewUser({...newUser, role: e.target.value}) : setCurrentUser(currentUser ? {...currentUser, role: e.target.value} : null)}>
                     {roleOptions.map(role => <option key={role} value={role}>{role}</option>)}
                   </select>
                 </div>
@@ -252,9 +392,41 @@ export default function SettingsPage() {
 
           <div className="flex items-center gap-6">
             <div className="h-8 w-[1px] bg-[#39B5A8]/10"></div>
+            <NotificationMenuButton
+              menuOpen={isNotificationMenuOpen}
+              onToggle={() => {
+                setIsUserMenuOpen(false);
+                setIsNotificationMenuOpen((current) => !current);
+              }}
+              onManagePreferences={handleOpenNotificationPreferences}
+              badgeCount={2}
+              previewTitle="Important Alerts Only"
+              previewDescription="Push is limited to critical events, while in-app keeps live admin visibility."
+              previewItems={[
+                { label: 'Push', note: 'Critical dispatch and delivery exceptions only', status: 'ON' },
+                { label: 'In-App', note: 'Live workspace alerts for active admins', status: 'ON' },
+              ]}
+              label="Open notification center"
+              status="ON"
+              theme={{
+                buttonClassName: 'border-[#39B5A8]/10 bg-[#F0F9F8] text-[#1A5D56] hover:border-[#39B5A8]/25 hover:bg-white',
+                badgeClassName: 'bg-[#39B5A8] text-white shadow-lg shadow-[#39B5A8]/20',
+                badgeDotClassName: 'bg-[#F0F9F8]',
+                labelClassName: 'text-[#1A5D56]',
+                statusPillClassName: 'rounded-full bg-[#39B5A8] px-2.5 py-1 text-white',
+                panelClassName: 'border-[#39B5A8]/10 bg-white',
+                panelTitleClassName: 'text-[#041614]',
+                panelBodyClassName: 'text-[#1A5D56]/65',
+                panelRowClassName: 'border-[#39B5A8]/10 bg-[#F0F9F8]/70',
+                panelActionClassName: 'bg-[#39B5A8] text-white hover:bg-[#2F9D91]',
+              }}
+            />
             <div className="relative">
               <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                onClick={() => {
+                  setIsNotificationMenuOpen(false);
+                  setIsUserMenuOpen(!isUserMenuOpen);
+                }}
                 className="flex items-center gap-3 hover:bg-[#F0F9F8] px-3 py-2 rounded-xl transition-all"
               >
                 <div className="w-10 h-10 bg-gradient-to-br from-[#39B5A8] to-[#1A5D56] rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-[#39B5A8]/20">
@@ -288,7 +460,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-[#041614] tracking-tight">Admin Settings</h1>
-            <p className="text-[#1A5D56] opacity-70 font-medium italic">Manage preferences and team access.</p>
+              <p className="text-[#1A5D56] opacity-70 font-medium italic">Manage team access and choose how PakiShip alerts reach you.</p>
             </div>
             {showSuccess && (
               <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl border border-emerald-100 animate-in fade-in slide-in-from-top-2">
@@ -298,111 +470,220 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* --- TEAM MANAGEMENT TABLE --- */}
-          <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm overflow-hidden flex flex-col h-[500px]">
-            <CardHeader className="p-8 border-b border-[#39B5A8]/5 bg-white flex-shrink-0">
-              <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setActiveTab('team')}
+              className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
+                activeTab === 'team'
+                  ? 'bg-[#39B5A8] text-white shadow-lg shadow-[#39B5A8]/20'
+                  : 'bg-white text-[#1A5D56] border border-[#39B5A8]/10 hover:bg-[#F0F9F8]'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Team Management
+            </button>
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
+                activeTab === 'requests'
+                  ? 'bg-[#39B5A8] text-white shadow-lg shadow-[#39B5A8]/20'
+                  : 'bg-white text-[#1A5D56] border border-[#39B5A8]/10 hover:bg-[#F0F9F8]'
+              }`}
+            >
+              <UserCheck className="w-4 h-4" />
+              Admin Requests
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                  activeTab === 'requests' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
+                }`}
+              >
+                {pendingAdminRequests.length}
+              </span>
+            </button>
+          </div>
+
+          {activeTab === 'team' ? (
+            <>
+              <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm overflow-hidden flex flex-col h-[500px]">
+                <CardHeader className="p-8 border-b border-[#39B5A8]/5 bg-white flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-[#F0F9F8] rounded-2xl"><Users className="w-5 h-5 text-[#39B5A8]" /></div>
+                      <div>
+                        <CardTitle className="text-xl font-bold text-[#041614]">Team Management</CardTitle>
+                        <CardDescription className="text-xs font-medium text-[#1A5D56]/60">Add, edit or deactivate system users</CardDescription>
+                      </div>
+                    </div>
+                    <Button onClick={() => setShowAddUserModal(true)} className="bg-[#39B5A8] hover:bg-[#2F9D91] text-white rounded-xl font-bold h-12 px-5 transition-all shadow-lg shadow-[#39B5A8]/20">
+                      <UserPlus className="w-4 h-4 mr-2" /> Add User
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0 overflow-y-auto flex-1 custom-scrollbar">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-[#F0F9F8] border-b border-[#39B5A8]/10 text-[10px] uppercase font-bold text-[#39B5A8] sticky top-0 z-10">
+                      <tr>
+                        <th className="px-8 py-4">User</th>
+                        <th className="px-8 py-4">Role</th>
+                        <th className="px-8 py-4">Status</th>
+                        <th className="px-8 py-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#39B5A8]/5">
+                      {users.map((u) => (
+                        <tr key={u.id} className="hover:bg-[#F0F9F8]/50 transition-colors group">
+                          <td className="px-8 py-5">
+                            <p className="font-bold text-sm text-[#041614]">{u.name}</p>
+                            <p className="text-xs text-gray-400 font-medium">{u.email}</p>
+                          </td>
+                          <td className="px-8 py-5">
+                            <span className={`text-[10px] font-bold px-3 py-1 bg-white border rounded-lg uppercase tracking-wider ${
+                              u.role === 'Super Admin' ? 'border-[#39B5A8] text-[#39B5A8]' : 'border-[#39B5A8]/20 text-[#041614]'
+                            }`}>
+                              {u.role}
+                            </span>
+                          </td>
+                          <td className="px-8 py-5">
+                            <div className={`flex items-center gap-1.5 text-xs font-bold ${u.status === 'Active' ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                <div className={`w-1.5 h-1.5 rounded-full ${u.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                                {u.status}
+                            </div>
+                          </td>
+                          <td className="px-8 py-5 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button onClick={() => openEditModal(u)} className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-[#39B5A8] transition-all"><Edit3 size={16} /></button>
+                              <button onClick={() => deactivateUser(u.id)} className={`p-2 hover:bg-white rounded-lg transition-all ${u.status === 'Active' ? 'text-red-400 hover:text-red-500' : 'text-emerald-400'}`}>
+                                  {u.status === 'Active' ? <UserMinus size={16} /> : <UserPlus size={16} />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+
+              <NotificationPreferencesPanel
+                sectionId="pakiship-notification-preferences"
+                copy={{
+                  badge: 'PakiShip Alerts',
+                  title: 'Notification Preferences',
+                  description:
+                    'Choose which channels should carry shipment exceptions, operational notices, and admin alerts so your team only hears what matters.',
+                  emailDescription:
+                    'Receive shipment summaries, escalations, and audit-friendly alert trails in your registered inbox.',
+                  pushDescription:
+                    'Only send critical dispatch blockers, urgent delivery exceptions, and major platform incidents to your devices.',
+                  inAppDescription:
+                    'Keep real-time notifications visible inside the PakiShip admin workspace while you manage operations.',
+                  successMessage: 'PakiShip notification preferences saved.',
+                  successDescription: 'Your alert channels have been updated successfully.',
+                }}
+                theme={{
+                  panelClassName: 'border-[#39B5A8]/10 bg-white',
+                  haloClassName:
+                    'bg-[radial-gradient(circle_at_top_right,_rgba(57,181,168,0.14),_transparent_34%),radial-gradient(circle_at_bottom_left,_rgba(4,22,20,0.06),_transparent_30%)]',
+                  badgeClassName: 'border-[#39B5A8]/20 bg-[#F0F9F8] text-[#1A5D56]',
+                  titleClassName: 'text-[#041614]',
+                  bodyClassName: 'text-[#1A5D56]/70',
+                  summaryClassName: 'border-[#39B5A8]/10 bg-[#F0F9F8]/70',
+                  summaryValueClassName: 'text-[#041614]',
+                  summaryLabelClassName: 'text-[#39B5A8]',
+                  channelCardClassName: 'border-[#39B5A8]/10 bg-white/90 hover:border-[#39B5A8]/25',
+                  iconWrapClassName: 'border-[#39B5A8]/15 bg-[#F0F9F8]',
+                  iconClassName: 'text-[#39B5A8]',
+                  switchClassName: 'data-[state=checked]:bg-[#39B5A8]',
+                  statusEnabledClassName: 'bg-[#39B5A8] text-white',
+                  statusDisabledClassName: 'bg-[#041614]/8 text-[#1A5D56]/60',
+                  footerClassName: 'border-[#39B5A8]/10 bg-[#F0F9F8]/65',
+                  footerTitleClassName: 'text-[#041614]',
+                  footerBodyClassName: 'text-[#1A5D56]/70',
+                  buttonClassName: 'bg-[#39B5A8] text-white hover:bg-[#2F9D91]',
+                }}
+              />
+            </>
+          ) : (
+            <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm overflow-hidden">
+              <CardHeader className="p-8 border-b border-[#39B5A8]/5 bg-white">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-[#F0F9F8] rounded-2xl"><Users className="w-5 h-5 text-[#39B5A8]" /></div>
+                  <div className="p-3 bg-[#F0F9F8] rounded-2xl">
+                    <UserCheck className="w-5 h-5 text-[#39B5A8]" />
+                  </div>
                   <div>
-                    <CardTitle className="text-xl font-bold text-[#041614]">Team Management</CardTitle>
-                    <CardDescription className="text-xs font-medium text-[#1A5D56]/60">Add, edit or deactivate system users</CardDescription>
+                    <CardTitle className="text-xl font-bold text-[#041614]">Admin Requests</CardTitle>
+                    <CardDescription className="text-xs font-medium text-[#1A5D56]/60">
+                      Review pending admin signup requests and decide whether to approve or reject them.
+                    </CardDescription>
                   </div>
                 </div>
-                <Button onClick={() => setShowAddUserModal(true)} className="bg-[#39B5A8] hover:bg-[#2F9D91] text-white rounded-xl font-bold h-12 px-5 transition-all shadow-lg shadow-[#39B5A8]/20">
-                  <UserPlus className="w-4 h-4 mr-2" /> Add User
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0 overflow-y-auto flex-1 custom-scrollbar">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-[#F0F9F8] border-b border-[#39B5A8]/10 text-[10px] uppercase font-bold text-[#39B5A8] sticky top-0 z-10">
-                  <tr>
-                    <th className="px-8 py-4">User</th>
-                    <th className="px-8 py-4">Role</th>
-                    <th className="px-8 py-4">Status</th>
-                    <th className="px-8 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#39B5A8]/5">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-[#F0F9F8]/50 transition-colors group">
-                      <td className="px-8 py-5">
-                        <p className="font-bold text-sm text-[#041614]">{u.name}</p>
-                        <p className="text-xs text-gray-400 font-medium">{u.email}</p>
-                      </td>
-                      <td className="px-8 py-5">
-                        <span className={`text-[10px] font-bold px-3 py-1 bg-white border rounded-lg uppercase tracking-wider ${
-                          u.role === 'Super Admin' ? 'border-[#39B5A8] text-[#39B5A8]' : 'border-[#39B5A8]/20 text-[#041614]'
-                        }`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5">
-                        <div className={`flex items-center gap-1.5 text-xs font-bold ${u.status === 'Active' ? 'text-emerald-500' : 'text-gray-400'}`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${u.status === 'Active' ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                            {u.status}
-                        </div>
-                      </td>
-                      <td className="px-8 py-5 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => openEditModal(u)} className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-[#39B5A8] transition-all"><Edit3 size={16} /></button>
-                          <button onClick={() => deactivateUser(u.id)} className={`p-2 hover:bg-white rounded-lg transition-all ${u.status === 'Active' ? 'text-red-400 hover:text-red-500' : 'text-emerald-400'}`}>
-                              {u.status === 'Active' ? <UserMinus size={16} /> : <UserPlus size={16} />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-
-          {/* --- ACCOUNT PREFERENCES --- */}
-          <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-[#39B5A8]/10 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
-              <Settings className="w-32 h-32 text-[#39B5A8]" />
-            </div>
-            
-            <div className="mb-8 flex justify-between items-start">
-              <div>
-                <h2 className="text-2xl font-black font-bold text-[#041614]">Account Preferences</h2>
-                <p className="text-sm text-[#1A5D56]/60 font-medium">Customize how you interact with the PakiShip platform.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <PreferenceToggle 
-                icon={<Bell className="w-5 h-5 text-[#39B5A8]" />} 
-                title="Email Notifications" 
-                description="Receive system updates and report alerts via your registered email." 
-                checked={preferences.emailNotifications} 
-                onChange={() => togglePreference('emailNotifications')} 
-              />
-              <PreferenceToggle 
-                icon={<MessageSquare className="w-5 h-5 text-[#39B5A8]" />} 
-                title="SMS Updates" 
-                description="Get critical delivery and security alerts directly to your phone." 
-                checked={preferences.smsUpdates} 
-                onChange={() => togglePreference('smsUpdates')} 
-              />
-              <PreferenceToggle 
-                icon={<Fingerprint className="w-5 h-5 text-[#39B5A8]" />} 
-                title="Two-Factor Auth" 
-                description="Add an extra layer of security to your admin account logins." 
-                checked={preferences.twoFactor} 
-                onChange={() => togglePreference('twoFactor')} 
-              />
-              <PreferenceToggle 
-                icon={<Globe className="w-5 h-5 text-[#39B5A8]" />} 
-                title="Public Profile" 
-                description="Allow other logistics coordinators to view your professional contact card." 
-                checked={preferences.publicProfile} 
-                onChange={() => togglePreference('publicProfile')} 
-              />
-            </div>
-          </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {pendingAdminRequests.length === 0 ? (
+                  <div className="px-8 py-16 text-center">
+                    <p className="text-lg font-bold text-[#041614]">No pending admin requests</p>
+                    <p className="mt-2 text-sm text-[#1A5D56]/60 font-medium">
+                      New signup requests will appear here for Super-Admin review.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-[#F0F9F8] border-b border-[#39B5A8]/10 text-[10px] uppercase font-bold text-[#39B5A8]">
+                        <tr>
+                          <th className="px-8 py-4">Applicant</th>
+                          <th className="px-8 py-4">Requested Role</th>
+                          <th className="px-8 py-4">Request Date</th>
+                          <th className="px-8 py-4">Status</th>
+                          <th className="px-8 py-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#39B5A8]/5">
+                        {pendingAdminRequests.map((request) => (
+                          <tr key={request.id} className="hover:bg-[#F0F9F8]/40 transition-colors">
+                            <td className="px-8 py-5">
+                              <p className="font-bold text-sm text-[#041614]">{request.name}</p>
+                              <p className="text-xs text-gray-400 font-medium">{request.email}</p>
+                            </td>
+                            <td className="px-8 py-5">
+                              <span className="inline-flex rounded-lg border border-[#39B5A8]/15 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#041614]">
+                                {request.requestedRole}
+                              </span>
+                            </td>
+                            <td className="px-8 py-5 text-sm font-semibold text-[#1A5D56]">
+                              {request.requestDate}
+                            </td>
+                            <td className="px-8 py-5">
+                              <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                                Pending
+                              </span>
+                            </td>
+                            <td className="px-8 py-5">
+                              <div className="flex justify-end gap-3">
+                                <Button
+                                  onClick={() => handleApproveRequest(request.id)}
+                                  className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl h-10 px-4"
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleOpenRejectModal(request)}
+                                  className="rounded-xl border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </main>
       </div>
     </div>

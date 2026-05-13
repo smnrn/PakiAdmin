@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "../../lib/router";
 import {
   Mail,
   ArrowLeft,
@@ -12,7 +12,7 @@ import {
   KeyRound
 } from "lucide-react";
 
-import pakiAdminLogo from 'figma:asset/201e5c2af3e232861c2832a6f19fc1174871e296.png';
+import { pakiAdminLogo } from '../../lib/assets';
 
 // Mock database of registered admin emails
 const REGISTERED_EMAILS = [

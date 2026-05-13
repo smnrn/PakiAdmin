@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from '../../lib/router';
 import { 
   BarChart3, 
   MapPin, 
@@ -23,7 +23,7 @@ import {
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
-import pakiParkLogo from 'figma:asset/feccb20cc5f5015bfba988559af29b31524bf965.png';
+import { pakiParkLogo } from '../../lib/assets';
 
 export default function ReservationsPage() {
   const { user, logout } = useAuth();
