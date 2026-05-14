@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   Edit3,
   UserMinus,
+  LockKeyhole,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,6 +25,7 @@ import { Button } from '../../components/ui/button';
 import { NotificationMenuButton } from '../../components/settings/NotificationMenuButton';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { NotificationPreferencesPanel } from '../../components/settings/NotificationPreferencesPanel';
+import { TwoFactorAuthPanel } from '../../components/settings/TwoFactorAuthPanel';
 
 interface UserRecord {
   email: string;
@@ -39,7 +41,7 @@ interface EditableUser {
   role: string;
 }
 
-type SettingsTab = 'team' | 'requests';
+type SettingsTab = 'team' | 'requests' | 'security';
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
 interface AdminRequestRecord {
@@ -460,7 +462,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-[#041614] tracking-tight">Admin Settings</h1>
-              <p className="text-[#1A5D56] opacity-70 font-medium italic">Manage team access and choose how PakiShip alerts reach you.</p>
+              <p className="text-[#1A5D56] opacity-70 font-medium italic">Manage team access, shipment alerts, and authenticator-based sign-in security.</p>
             </div>
             {showSuccess && (
               <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl border border-emerald-100 animate-in fade-in slide-in-from-top-2">
@@ -499,6 +501,17 @@ export default function SettingsPage() {
               >
                 {pendingAdminRequests.length}
               </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('security')}
+              className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
+                activeTab === 'security'
+                  ? 'bg-[#39B5A8] text-white shadow-lg shadow-[#39B5A8]/20'
+                  : 'bg-white text-[#1A5D56] border border-[#39B5A8]/10 hover:bg-[#F0F9F8]'
+              }`}
+            >
+              <LockKeyhole className="w-4 h-4" />
+              Security
             </button>
           </div>
 
@@ -603,7 +616,7 @@ export default function SettingsPage() {
                 }}
               />
             </>
-          ) : (
+          ) : activeTab === 'requests' ? (
             <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm overflow-hidden">
               <CardHeader className="p-8 border-b border-[#39B5A8]/5 bg-white">
                 <div className="flex items-center gap-3">
@@ -683,6 +696,8 @@ export default function SettingsPage() {
                 )}
               </CardContent>
             </Card>
+          ) : (
+            <TwoFactorAuthPanel platform="pakiship" />
           )}
         </main>
       </div>

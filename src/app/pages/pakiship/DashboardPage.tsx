@@ -19,7 +19,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 
-// Assets
 import { pakiParkLogo, pakiShipLogo } from '../../lib/assets';
 
 export default function DashboardPage() {
@@ -28,7 +27,7 @@ export default function DashboardPage() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isDashboardMenuOpen, setIsDashboardMenuOpen] = useState(false);
 
-  const placeholderName = "Juan Dela Cruz";
+  const placeholderName = 'Juan Dela Cruz';
 
   const handleLogout = () => {
     logout();
@@ -38,12 +37,12 @@ export default function DashboardPage() {
   const kpis = [
     {
       label: 'Total Revenue',
-      value: '₱50,650',
+      value: '\u20B150,650',
       change: '+2.5%',
       trend: 'up',
       icon: <DollarSign className="w-5 h-5" />,
       color: 'bg-[#39B5A8]/10 text-[#2D8F85]',
-      description: 'Weekly earnings from hub areas'
+      description: 'Weekly earnings from hub areas',
     },
     {
       label: 'Active Shipments',
@@ -52,7 +51,7 @@ export default function DashboardPage() {
       trend: 'up',
       icon: <Truck className="w-5 h-5" />,
       color: 'bg-blue-100 text-blue-600',
-      description: 'Currently in transit'
+      description: 'Currently in transit',
     },
     {
       label: 'On-Time Delivery',
@@ -61,16 +60,16 @@ export default function DashboardPage() {
       trend: 'up',
       icon: <Target className="w-5 h-5" />,
       color: 'bg-emerald-100 text-emerald-600',
-      description: 'Delivered within promised timeframe'
+      description: 'Delivered within promised timeframe',
     },
     {
       label: 'Canceled Bookings',
       value: '87',
       change: '-5.4%',
       trend: 'down',
-      icon: <XCircle className="w-5 h-5" />, 
+      icon: <XCircle className="w-5 h-5" />,
       color: 'bg-red-100 text-red-600',
-      description: 'Total bookings canceled in this period'
+      description: 'Total bookings canceled in this period',
     },
     {
       label: 'Avg Delivery Time',
@@ -79,7 +78,7 @@ export default function DashboardPage() {
       trend: 'down',
       icon: <Clock className="w-5 h-5" />,
       color: 'bg-amber-100 text-amber-600',
-      description: 'Fast fulfillment for orders'
+      description: 'Fast fulfillment for orders',
     },
     {
       label: 'Total Deliveries',
@@ -88,38 +87,41 @@ export default function DashboardPage() {
       trend: 'up',
       icon: <Package className="w-5 h-5" />,
       color: 'bg-teal-100 text-teal-600',
-      description: 'Completed this week'
+      description: 'Completed this week',
     },
   ];
 
   const shipments = [
     { store: '7-Eleven Dapitan', location: 'Dapitan St. cor A.H. Lacson', amount: '12.19K', status: 'In Transit' },
-    { store: 'Lawson España', location: 'España Blvd near P. Noval', amount: '15.51K', status: 'Pending' },
-    { store: 'Uncle John\'s Noval', location: 'P. Noval St.', amount: '09.24K', status: 'Delivered' },
+    { store: 'Lawson Espana', location: 'Espana Blvd near P. Noval', amount: '15.51K', status: 'Pending' },
+    { store: "Uncle John's Noval", location: 'P. Noval St.', amount: '09.24K', status: 'Delivered' },
     { store: '7-Eleven Lacson', location: 'A.H. Lacson Ave.', amount: '11.10K', status: 'In Transit' },
   ];
 
   const transactions = [
-    { id: 'TRX-9921', person: 'Sarah Dela Pena', type: 'Food', amount: '+₱300', date: 'Today, 2:40 PM', status: 'In' },
-    { id: 'TRX-9920', person: 'Joey Salvador', type: 'Fragile', amount: '+₱1,100', date: 'Today, 1:15 PM', status: 'In' },
-    { id: 'TRX-9918', person: 'Carlos Santos', type: 'Fragile', amount: '+₱880', date: 'Yesterday', status: 'In' },
-    { id: 'TRX-9915', person: 'Hannah Garcia', type: 'Clothing', amount: '+₱160', date: 'Yesterday', status: 'In' },
-    { id: 'TRX-9914', person: 'Paul Mendoza', type: 'Electronics', amount: '+₱650', date: 'Yesterday', status: 'In' },
+    { id: 'TRX-9921', person: 'Sarah Dela Pena', type: 'Food', amount: '+\u20B1300', date: 'Today, 2:40 PM', status: 'In' },
+    { id: 'TRX-9920', person: 'Joey Salvador', type: 'Fragile', amount: '+\u20B11,100', date: 'Today, 1:15 PM', status: 'In' },
+    { id: 'TRX-9918', person: 'Carlos Santos', type: 'Fragile', amount: '+\u20B1880', date: 'Yesterday', status: 'In' },
+    { id: 'TRX-9915', person: 'Hannah Garcia', type: 'Clothing', amount: '+\u20B1160', date: 'Yesterday', status: 'In' },
+    { id: 'TRX-9914', person: 'Paul Mendoza', type: 'Electronics', amount: '+\u20B1650', date: 'Yesterday', status: 'In' },
   ];
-  
+
   return (
     <div className="flex h-screen bg-[#F0F9F8] font-sans text-[#1A5D56]">
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #F0F9F8; }
         ::-webkit-scrollbar-thumb { background: #39B5A833; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #39B5A866; }
-      `}} />
+      `,
+        }}
+      />
 
       <PakiShipSidebar activeTab="dashboard" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* --- NAVBAR --- */}
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-[#39B5A8]/10 px-10 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -147,7 +149,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="w-1.5 h-1.5 bg-[#39B5A8] rounded-full" />
                     </button>
-                    
+
                     <button
                       onClick={() => {
                         setIsDashboardMenuOpen(false);
@@ -196,16 +198,34 @@ export default function DashboardPage() {
 
               {isUserMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#39B5A8]/10 overflow-hidden z-20">
-                  <button onClick={() => { setIsUserMenuOpen(false); navigate('/pakiship/profile'); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F9F8] transition-colors text-left">
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      navigate('/pakiship/profile');
+                    }}
+                    className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F9F8] transition-colors text-left"
+                  >
                     <User className="w-4 h-4 text-[#39B5A8]" />
                     <span className="font-semibold text-[#041614]">Profile</span>
                   </button>
-                  <button onClick={() => { setIsUserMenuOpen(false); navigate('/pakiship/settings'); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F9F8] transition-colors text-left">
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      navigate('/pakiship/settings');
+                    }}
+                    className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F9F8] transition-colors text-left"
+                  >
                     <Settings className="w-4 h-4 text-[#39B5A8]" />
                     <span className="font-semibold text-[#041614]">Settings</span>
                   </button>
                   <div className="border-t border-[#39B5A8]/10"></div>
-                  <button onClick={() => { setIsUserMenuOpen(false); handleLogout(); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-red-50 transition-colors text-left">
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-3 px-5 py-3 hover:bg-red-50 transition-colors text-left"
+                  >
                     <LogOut className="w-4 h-4 text-red-500" />
                     <span className="font-semibold text-red-500">Logout</span>
                   </button>
@@ -215,34 +235,37 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* --- MAIN CONTENT --- */}
         <main className="flex-1 overflow-y-auto p-10 space-y-10">
           <section>
             <h1 className="text-3xl font-bold text-[#041614] tracking-tight">Operational Overview</h1>
             <p className="text-[#1A5D56] opacity-70 font-medium italic">Monitoring PakiShip logistics, {placeholderName}.</p>
           </section>
 
-          {/* --- KPI GRID --- */}
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {kpis.map((kpi, index) => (
-                <div key={index} className="bg-white p-6 rounded-[2rem] border border-[#39B5A8]/10 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-2xl ${kpi.color} transition-transform group-hover:scale-110`}>
-                      {kpi.icon}
-                    </div>
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
-                      kpi.trend === 'up' ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-blue-600 bg-blue-50 border-blue-100'
-                    }`}>
+                <div
+                  key={index}
+                  className="group relative overflow-hidden rounded-[2rem] border border-[#39B5A8]/10 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+                >
+                  <div className="mb-4 flex items-start justify-between">
+                    <div className={`rounded-2xl p-3 transition-transform group-hover:scale-110 ${kpi.color}`}>{kpi.icon}</div>
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+                        kpi.trend === 'up'
+                          ? 'border-emerald-100 bg-emerald-50 text-emerald-600'
+                          : 'border-blue-100 bg-blue-50 text-blue-600'
+                      }`}
+                    >
                       {kpi.change}
                     </span>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-[10px] font-bold text-[#39B5A8] uppercase tracking-[0.15em]">{kpi.label}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#39B5A8]">{kpi.label}</p>
                     <p className="text-3xl font-black text-[#041614]">{kpi.value}</p>
-                    <p className="text-xs text-gray-400 font-medium leading-relaxed">{kpi.description}</p>
+                    <p className="text-xs font-medium leading-relaxed text-gray-400">{kpi.description}</p>
                   </div>
-                  <div className="absolute -bottom-4 -right-4 opacity-[0.02] scale-150 group-hover:scale-[1.7] transition-transform duration-300">
+                  <div className="absolute -bottom-4 -right-4 scale-150 opacity-[0.02] transition-transform duration-300 group-hover:scale-[1.7]">
                     {kpi.icon}
                   </div>
                 </div>
@@ -250,37 +273,39 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* --- TABLES SECTION --- */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Dispatch Logs Table */}
-            <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm overflow-hidden">
-              <CardHeader className="p-8 border-b border-[#39B5A8]/5">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <Card className="overflow-hidden rounded-[2.5rem] border-[#39B5A8]/10 bg-white shadow-sm">
+              <CardHeader className="border-b border-[#39B5A8]/5 p-8">
                 <CardTitle className="text-xl font-bold text-[#041614]">Recent Dispatch Logs</CardTitle>
-                <p className="text-xs text-gray-400 font-medium">Latest dispatch records and activity updates.</p>
+                <p className="text-xs font-medium text-gray-400">Latest dispatch records and activity updates.</p>
               </CardHeader>
               <CardContent className="p-0">
-                <table className="w-full text-left table-auto -mt-8">
-                  <thead className="bg-[#F0F9F8]/50 border-b border-[#39B5A8]/5">
+                <table className="mt-[-2rem] w-full table-auto text-left">
+                  <thead className="border-b border-[#39B5A8]/5 bg-[#F0F9F8]/50">
                     <tr>
-                      <th className="px-8 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Location</th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest text-center">Revenue</th>
-                      <th className="px-8 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest text-right">Status</th>
+                      <th className="px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-[#39B5A8]">Location</th>
+                      <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[#39B5A8]">Revenue</th>
+                      <th className="px-8 py-4 text-right text-[10px] font-bold uppercase tracking-widest text-[#39B5A8]">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#39B5A8]/5">
                     {shipments.map((shipment, index) => (
-                      <tr key={index} className="hover:bg-[#F0F9F8]/30 transition-colors group">
+                      <tr key={index} className="group transition-colors hover:bg-[#F0F9F8]/30">
                         <td className="px-8 py-5">
-                          <p className="font-bold text-[#041614] group-hover:text-[#39B5A8] transition-colors">{shipment.store}</p>
-                          <p className="text-xs text-gray-400 font-medium">{shipment.location}</p>
+                          <p className="font-bold text-[#041614] transition-colors group-hover:text-[#39B5A8]">{shipment.store}</p>
+                          <p className="text-xs font-medium text-gray-400">{shipment.location}</p>
                         </td>
-                        <td className="px-6 py-5 font-bold text-[#1A5D56] text-center">₱{shipment.amount}</td>
+                        <td className="px-6 py-5 text-center font-bold text-[#1A5D56]">{`\u20B1${shipment.amount}`}</td>
                         <td className="px-8 py-5 text-right">
-                          <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase border ${
-                            shipment.status === 'In Transit' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                            shipment.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                            'bg-amber-50 text-amber-600 border-amber-100'
-                          }`}>
+                          <span
+                            className={`inline-block whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${
+                              shipment.status === 'In Transit'
+                                ? 'border-blue-100 bg-blue-50 text-blue-600'
+                                : shipment.status === 'Delivered'
+                                  ? 'border-emerald-100 bg-emerald-50 text-emerald-600'
+                                  : 'border-amber-100 bg-amber-50 text-amber-600'
+                            }`}
+                          >
                             {shipment.status}
                           </span>
                         </td>
@@ -291,28 +316,27 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Transactions Card */}
-            <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm overflow-hidden">
-              <CardHeader className="p-8 border-b border-[#39B5A8]/5">
+            <Card className="overflow-hidden rounded-[2.5rem] border-[#39B5A8]/10 bg-white shadow-sm">
+              <CardHeader className="border-b border-[#39B5A8]/5 p-8">
                 <CardTitle className="text-xl font-bold text-[#041614]">Recent Transactions</CardTitle>
-                <p className="text-xs text-gray-400 font-medium">Latest booking transaction records.</p>
+                <p className="text-xs font-medium text-gray-400">Latest booking transaction records.</p>
               </CardHeader>
               <CardContent className="p-8">
-                <div className="space-y-6 -mt-8">
+                <div className="-mt-8 space-y-6">
                   {transactions.map((trx, index) => (
-                    <div key={index} className="flex items-center justify-between group">
+                    <div key={index} className="group flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-2xl ${trx.status === 'In' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-                          {trx.status === 'In' ? <ArrowDownLeft className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+                        <div className={`rounded-2xl p-3 ${trx.status === 'In' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                          {trx.status === 'In' ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
                         </div>
                         <div>
-                          <p className="font-bold text-[#041614] group-hover:text-[#39B5A8] transition-colors">{trx.person}</p>
-                          <p className="text-xs text-gray-400 font-medium">{trx.type} • {trx.date}</p>
+                          <p className="font-bold text-[#041614] transition-colors group-hover:text-[#39B5A8]">{trx.person}</p>
+                          <p className="text-xs font-medium text-gray-400">{`${trx.type} \u2022 ${trx.date}`}</p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className={`font-bold ${trx.status === 'In' ? 'text-emerald-600' : 'text-[#041614]'}`}>{trx.amount}</p>
-                        <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{trx.id}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">{trx.id}</p>
                       </div>
                     </div>
                   ))}

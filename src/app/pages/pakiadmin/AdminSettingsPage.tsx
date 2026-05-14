@@ -9,11 +9,13 @@ import {
   Mail,
   Calendar,
   Shield,
+  LockKeyhole,
   AlertCircle,
   Clock,
   ChevronLeft
 } from 'lucide-react';
 import { useNavigate } from '../../lib/router';
+import { TwoFactorAuthPanel } from '../../components/settings/TwoFactorAuthPanel';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
@@ -125,7 +127,7 @@ const MOCK_TEAM: TeamMember[] = [
 
 export default function AdminSettingsPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'team' | 'requests'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'requests' | 'security'>('team');
   const [requests, setRequests] = useState<AdminRequest[]>(MOCK_REQUESTS);
   const [teamMembers] = useState<TeamMember[]>(MOCK_TEAM);
   const [searchQuery, setSearchQuery] = useState('');
@@ -265,7 +267,7 @@ export default function AdminSettingsPage() {
             </div>
             <div>
               <h1 className="text-3xl font-black">Admin Settings</h1>
-              <p className="text-[#dec0f1] text-sm mt-1">Manage team members and review admin requests</p>
+              <p className="text-[#dec0f1] text-sm mt-1">Manage team members, review admin requests, and secure admin access</p>
             </div>
           </div>
         </div>
@@ -300,6 +302,17 @@ export default function AdminSettingsPage() {
                 {pendingCount}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-[1.5rem] font-bold text-sm transition-all ${
+              activeTab === 'security'
+                ? 'bg-[#2c0735] text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <LockKeyhole className="w-5 h-5" />
+            Security
           </button>
         </div>
 
@@ -539,6 +552,8 @@ export default function AdminSettingsPage() {
             </div>
           </div>
         )}
+
+        {activeTab === 'security' && <TwoFactorAuthPanel />}
       </div>
 
       {/* Review Modal */}
