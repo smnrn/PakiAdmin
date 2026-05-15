@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '../../lib/router';
 import {
+  CalendarDays,
   Filter,
   Download,
   Search,
+  Truck,
   User,
   ChevronDown,
   Settings,
@@ -12,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
 import {
   Pagination,
   PaginationContent,
@@ -43,9 +46,11 @@ export default function ShipmentsPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [bookingSearchQuery, setBookingSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [driverFilter, setDriverFilter] = useState('All Drivers');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
   const placeholderName = 'Juan Dela Cruz';
@@ -227,21 +232,65 @@ export default function ShipmentsPage() {
     },
   ];
 
+  const driverOptions = ['All Drivers', ...Array.from(new Set(shipments.map((shipment) => shipment.driver)))];
+  const activeFilterCount = [
+    bookingSearchQuery.trim().length > 0,
+    statusFilter !== 'All',
+    driverFilter !== 'All Drivers',
+    startDateFilter.length > 0,
+    endDateFilter.length > 0,
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setBookingSearchQuery('');
+    setStatusFilter('All');
+    setDriverFilter('All Drivers');
+    setStartDateFilter('');
+    setEndDateFilter('');
+  };
+
   const filteredShipments = useMemo(() => {
+    const normalizeFilterDate = (value: string) => {
+      if (!value) {
+        return null;
+      }
+
+      const date = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+
+      return date;
+    };
+
+    const parseShipmentDate = (value: string) => {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    };
+
+    const startDate = normalizeFilterDate(startDateFilter);
+    const endDate = normalizeFilterDate(endDateFilter);
+    const rangeStart = startDate && endDate && startDate > endDate ? endDate : startDate;
+    const rangeEnd = startDate && endDate && startDate > endDate ? startDate : endDate;
+
     return shipments.filter((shipment) => {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        shipment.id.toLowerCase().includes(query) ||
-        shipment.store.toLowerCase().includes(query) ||
-        shipment.sender.toLowerCase().includes(query) ||
-        shipment.receiver.toLowerCase().includes(query) ||
-        shipment.driver.toLowerCase().includes(query);
-
+      const query = bookingSearchQuery.trim().toLowerCase();
+      const matchesSearch = shipment.id.toLowerCase().includes(query);
       const matchesStatus = statusFilter === 'All' || shipment.status === statusFilter;
+      const matchesDriver = driverFilter === 'All Drivers' || shipment.driver === driverFilter;
+      const shipmentDate = parseShipmentDate(shipment.date);
+      const matchesDateRange =
+        shipmentDate !== null &&
+        (rangeStart === null || shipmentDate >= rangeStart) &&
+        (rangeEnd === null || shipmentDate <= rangeEnd);
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesDriver && matchesDateRange;
     });
-  }, [searchQuery, statusFilter]);
+  }, [bookingSearchQuery, driverFilter, endDateFilter, startDateFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredShipments.length / shipmentsPerPage));
 
@@ -258,7 +307,7 @@ export default function ShipmentsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter]);
+  }, [bookingSearchQuery, driverFilter, endDateFilter, startDateFilter, statusFilter]);
 
   const handleExport = () => {
     const headers = ['Shipment ID', 'Sender', 'Receiver', 'Store', 'Destination', 'Assigned Driver', 'Shipment Value', 'Status', 'Date'];
@@ -290,20 +339,9 @@ export default function ShipmentsPage() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-[#39B5A8]/10 bg-white/80 px-10 backdrop-blur-md">
-          <div className="flex items-center gap-4">
-            <div className="flex w-180 items-center gap-4 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 py-2">
-              <Search className="h-4 w-4 text-[#39B5A8]/60" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search shipment, sender, receiver, or driver..."
-                className="w-full border-none bg-transparent text-sm font-medium outline-none placeholder:text-[#39B5A8]/40"
-              />
-              {searchQuery && (
-                <X className="h-4 w-4 cursor-pointer opacity-40 hover:opacity-100" onClick={() => setSearchQuery('')} />
-              )}
-            </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-[#39B5A8]">Operations Console</p>
+            <p className="mt-1 text-sm font-semibold text-[#1A5D56]/70">Monitor bookings, assignments, and shipment progress in one place.</p>
           </div>
 
           <div className="flex items-center gap-6">
@@ -364,37 +402,6 @@ export default function ShipmentsPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  className="min-w-[140px] justify-between rounded-xl border-[#39B5A8]/20 bg-white font-bold text-[#1A5D56] hover:bg-[#F0F9F8]"
-                >
-                  <div className="flex items-center">
-                    <Filter className="mr-2 h-4 w-4 text-[#39B5A8]" />
-                    {statusFilter === 'All' ? 'Filter Status' : statusFilter}
-                  </div>
-                  <ChevronDown className={`ml-2 h-3 w-3 opacity-50 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
-                </Button>
-                {showFilterDropdown && (
-                  <div className="absolute right-0 z-30 mt-2 w-48 overflow-hidden rounded-xl border border-[#39B5A8]/10 bg-white shadow-xl">
-                    {['All', 'In Transit', 'Pending', 'Delivered'].map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => {
-                          setStatusFilter(status);
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full px-4 py-3 text-left text-xs font-bold transition-colors ${
-                          statusFilter === status ? 'bg-[#39B5A8] text-white' : 'text-[#1A5D56] hover:bg-[#F0F9F8]'
-                        }`}
-                      >
-                        {status}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
               <Button
                 onClick={handleExport}
                 className="rounded-xl bg-[#39B5A8] font-bold text-white shadow-lg shadow-[#39B5A8]/20 hover:bg-[#2F9D91]"
@@ -415,6 +422,131 @@ export default function ShipmentsPage() {
                 </div>
                 <div className="rounded-full border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39B5A8]">
                   {filteredShipments.length} Records
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-[2rem] border border-[#39B5A8]/10 bg-[#F0F9F8]/70 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-[#39B5A8]" />
+                      <p className="text-sm font-black uppercase tracking-[0.2em] text-[#1A5D56]">Shipment Lookup</p>
+                    </div>
+                    <p className="mt-1 text-sm font-medium text-[#1A5D56]/65">
+                      Search by booking ID and narrow results by shipment status, schedule, and assigned driver.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 self-start lg:self-center">
+                    {activeFilterCount > 0 && (
+                      <div className="rounded-full border border-[#39B5A8]/10 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#39B5A8]">
+                        {activeFilterCount} Active Filters
+                      </div>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={clearFilters}
+                      disabled={activeFilterCount === 0}
+                      className="rounded-xl border-[#39B5A8]/15 bg-white font-bold text-[#1A5D56] hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <X className="mr-2 h-4 w-4" /> Clear Filters
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))]">
+                  <div className="xl:col-span-1">
+                    <label htmlFor="booking-search" className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#39B5A8]">
+                      Booking ID
+                    </label>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                      <Input
+                        id="booking-search"
+                        type="text"
+                        value={bookingSearchQuery}
+                        onChange={(event) => setBookingSearchQuery(event.target.value)}
+                        placeholder="Search by booking ID"
+                        className="h-12 rounded-2xl border-[#39B5A8]/10 bg-white pl-11 pr-4 text-sm font-semibold text-[#041614] placeholder:text-[#39B5A8]/35 focus-visible:border-[#39B5A8]/30 focus-visible:ring-[#39B5A8]/15"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="status-filter" className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#39B5A8]">
+                      Status
+                    </label>
+                    <div className="relative">
+                      <Filter className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                      <select
+                        id="status-filter"
+                        value={statusFilter}
+                        onChange={(event) => setStatusFilter(event.target.value)}
+                        className="h-12 w-full appearance-none rounded-2xl border border-[#39B5A8]/10 bg-white pl-11 pr-10 text-sm font-semibold text-[#041614] outline-none transition-all focus:border-[#39B5A8]/30 focus:ring-4 focus:ring-[#39B5A8]/15"
+                      >
+                        {['All', 'In Transit', 'Pending', 'Delivered'].map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="driver-filter" className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#39B5A8]">
+                      Assigned Driver
+                    </label>
+                    <div className="relative">
+                      <Truck className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                      <select
+                        id="driver-filter"
+                        value={driverFilter}
+                        onChange={(event) => setDriverFilter(event.target.value)}
+                        className="h-12 w-full appearance-none rounded-2xl border border-[#39B5A8]/10 bg-white pl-11 pr-10 text-sm font-semibold text-[#041614] outline-none transition-all focus:border-[#39B5A8]/30 focus:ring-4 focus:ring-[#39B5A8]/15"
+                      >
+                        {driverOptions.map((driver) => (
+                          <option key={driver} value={driver}>
+                            {driver}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="start-date-filter" className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#39B5A8]">
+                      Start Date
+                    </label>
+                    <div className="relative">
+                      <CalendarDays className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                      <Input
+                        id="start-date-filter"
+                        type="date"
+                        value={startDateFilter}
+                        onChange={(event) => setStartDateFilter(event.target.value)}
+                        className="h-12 rounded-2xl border-[#39B5A8]/10 bg-white pl-11 pr-4 text-sm font-semibold text-[#041614] focus-visible:border-[#39B5A8]/30 focus-visible:ring-[#39B5A8]/15"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="end-date-filter" className="mb-2 block text-[11px] font-black uppercase tracking-[0.18em] text-[#39B5A8]">
+                      End Date
+                    </label>
+                    <div className="relative">
+                      <CalendarDays className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                      <Input
+                        id="end-date-filter"
+                        type="date"
+                        value={endDateFilter}
+                        onChange={(event) => setEndDateFilter(event.target.value)}
+                        className="h-12 rounded-2xl border-[#39B5A8]/10 bg-white pl-11 pr-4 text-sm font-semibold text-[#041614] focus-visible:border-[#39B5A8]/30 focus-visible:ring-[#39B5A8]/15"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardHeader>
