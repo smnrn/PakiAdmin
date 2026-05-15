@@ -2,11 +2,9 @@
 
 import { useMemo } from 'react';
 import {
-  Activity,
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
-  CheckCheck,
   CircleDollarSign,
   ClipboardCheck,
   LogOut,
@@ -27,80 +25,60 @@ interface KpiMetric {
   trend: string;
   direction: TrendDirection;
   status: string;
-  hint: string;
   icon: React.ReactNode;
-  graph: number[];
   accent: {
-    glow: string;
     iconWrap: string;
-    graphStroke: string;
-    graphFill: string;
+    trendTone: string;
   };
 }
 
 const kpiMetrics: KpiMetric[] = [
   {
-    label: 'Active Shipments',
-    value: '248',
-    trend: '+8.4%',
+    label: 'Total Revenue',
+    value: 'PHP 50,650',
+    trend: '+2.5%',
     direction: 'up',
-    status: '18 more in transit this shift',
-    hint: 'Dispatch flow is holding steady across priority hubs.',
-    icon: <PackageCheck className="h-5 w-5" />,
-    graph: [24, 28, 30, 34, 39, 37, 44],
+    status: 'Weekly earnings from hub areas',
+    icon: <CircleDollarSign className="h-5 w-5" />,
     accent: {
-      glow: 'from-[#2bb7a9]/18 via-white to-white',
-      iconWrap: 'bg-[#dff7f3] text-[#0f766e]',
-      graphStroke: '#14b8a6',
-      graphFill: 'rgba(20, 184, 166, 0.16)',
+      iconWrap: 'bg-[#dff4f2] text-[#0f8f86]',
+      trendTone: 'bg-[#e9fbf2] text-[#05a56b] border-[#c4f1d9]',
+    },
+  },
+  {
+    label: 'Active Shipments',
+    value: '247',
+    trend: '+8.2%',
+    direction: 'up',
+    status: 'Currently in transit',
+    icon: <PackageCheck className="h-5 w-5" />,
+    accent: {
+      iconWrap: 'bg-[#dbe9ff] text-[#2563eb]',
+      trendTone: 'bg-[#e9fbf2] text-[#05a56b] border-[#c4f1d9]',
     },
   },
   {
     label: 'Pending Approvals',
     value: '19',
-    trend: '-3.1%',
-    direction: 'down',
-    status: 'Queue is clearing faster today',
-    hint: 'Review turnaround is improving for new admin and partner requests.',
+    trend: '+1.9%',
+    direction: 'up',
+    status: 'Awaiting admin review',
     icon: <ClipboardCheck className="h-5 w-5" />,
-    graph: [44, 41, 38, 33, 29, 24, 19],
     accent: {
-      glow: 'from-[#34d399]/18 via-white to-white',
-      iconWrap: 'bg-[#ddfce8] text-[#15803d]',
-      graphStroke: '#22c55e',
-      graphFill: 'rgba(34, 197, 94, 0.14)',
+      iconWrap: 'bg-[#dcfce7] text-[#0f9f78]',
+      trendTone: 'bg-[#e9fbf2] text-[#05a56b] border-[#c4f1d9]',
     },
   },
   {
     label: 'Open Lost Parcel Reports',
     value: '7',
-    trend: '+1.6%',
-    direction: 'up',
-    status: '2 fresh cases need follow-up',
-    hint: 'Containment is stable, but quick action keeps trust high.',
+    trend: '-5.4%',
+    direction: 'down',
+    status: 'Active incident cases',
     icon: <AlertTriangle className="h-5 w-5" />,
-    graph: [8, 9, 7, 8, 9, 6, 7],
     accent: {
-      glow: 'from-[#facc15]/16 via-white to-white',
-      iconWrap: 'bg-[#fef3c7] text-[#b45309]',
-      graphStroke: '#f59e0b',
-      graphFill: 'rgba(245, 158, 11, 0.14)',
-    },
-  },
-  {
-    label: 'Total Revenue',
-    value: 'PHP 2.48M',
-    trend: '+12.8%',
-    direction: 'up',
-    status: 'Weekly billings pacing ahead',
-    hint: 'Higher completed volume and cleaner handoff rates are lifting revenue.',
-    icon: <CircleDollarSign className="h-5 w-5" />,
-    graph: [18, 22, 27, 31, 35, 42, 48],
-    accent: {
-      glow: 'from-[#0f766e]/18 via-white to-white',
-      iconWrap: 'bg-[#d6fbf5] text-[#115e59]',
-      graphStroke: '#0f766e',
-      graphFill: 'rgba(15, 118, 110, 0.16)',
+      iconWrap: 'bg-[#ffe2e2] text-[#ff2f2f]',
+      trendTone: 'bg-[#edf3ff] text-[#1857ff] border-[#d4e1ff]',
     },
   },
 ];
@@ -123,109 +101,25 @@ const adminAlerts = [
   },
 ];
 
-const overviewPills = [
-  'Ops stable',
-  'Approvals moving',
-  'Risk controlled',
-  'Revenue ahead',
-];
-
-function buildSparkline(values: number[]) {
-  const width = 140;
-  const height = 54;
-  const padding = 6;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-
-  const points = values
-    .map((value, index) => {
-      const x = padding + (index * (width - padding * 2)) / Math.max(values.length - 1, 1);
-      const y = height - padding - ((value - min) / range) * (height - padding * 2);
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  const areaPoints = `${padding},${height - padding} ${points} ${width - padding},${height - padding}`;
-
-  return { areaPoints, points, width, height };
-}
-
-function MiniTrendGraph({
-  values,
-  stroke,
-  fill,
-}: {
-  values: number[];
-  stroke: string;
-  fill: string;
-}) {
-  const { areaPoints, points, width, height } = useMemo(() => buildSparkline(values), [values]);
-
-  return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className="h-14 w-full"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id={`fill-${stroke.replace(/[^a-zA-Z0-9]/g, '')}`} x1="0%" x2="0%" y1="0%" y2="100%">
-          <stop offset="0%" stopColor={fill} />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-        </linearGradient>
-      </defs>
-      <polygon
-        points={areaPoints}
-        fill={`url(#fill-${stroke.replace(/[^a-zA-Z0-9]/g, '')})`}
-      />
-      <polyline
-        fill="none"
-        points={points}
-        stroke={stroke}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="3"
-      />
-    </svg>
-  );
-}
-
 function KpiCard({ metric }: { metric: KpiMetric }) {
   const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
-  const trendTone =
-    metric.direction === 'up'
-      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-      : 'bg-slate-100 text-slate-700 border-slate-200';
 
   return (
-    <article
-      className={`relative overflow-hidden rounded-[28px] border border-white/80 bg-gradient-to-br ${metric.accent.glow} p-5 shadow-[0_24px_60px_-32px_rgba(15,118,110,0.45)] transition-transform duration-200 hover:-translate-y-1`}
-    >
-      <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-[#14b8a6]/30 to-transparent" />
+    <article className="rounded-[30px] border border-[#dceceb] bg-white px-7 py-6 shadow-[0_8px_24px_rgba(15,118,110,0.08)] transition-transform duration-200 hover:-translate-y-1">
       <div className="flex items-start justify-between gap-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${metric.accent.iconWrap} shadow-sm`}>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${metric.accent.iconWrap}`}>
           {metric.icon}
         </div>
-        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${trendTone}`}>
+        <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-bold ${metric.accent.trendTone}`}>
           <TrendIcon className="h-3.5 w-3.5" />
           {metric.trend}
         </span>
       </div>
 
-      <div className="mt-5 space-y-1.5">
-        <p className="text-sm font-semibold text-[#0f4f4a]/70">{metric.label}</p>
-        <p className="text-3xl font-black tracking-tight text-[#06322e] md:text-[2rem]">{metric.value}</p>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#11998e]">{metric.status}</p>
-      </div>
-
-      <div className="mt-5 rounded-2xl border border-[#d9f3ef] bg-white/75 p-3">
-        <MiniTrendGraph
-          values={metric.graph}
-          stroke={metric.accent.graphStroke}
-          fill={metric.accent.graphFill}
-        />
-        <p className="mt-2 text-xs font-medium leading-5 text-[#245b56]">{metric.hint}</p>
+      <div className="mt-12">
+        <p className="text-[13px] font-black uppercase tracking-[0.22em] text-[#0ea5a5]">{metric.label}</p>
+        <p className="mt-3 text-[2.1rem] font-black tracking-tight text-[#062b3d]">{metric.value}</p>
+        <p className="mt-3 text-sm font-semibold text-[#8b97b3]">{metric.status}</p>
       </div>
     </article>
   );
@@ -328,61 +222,15 @@ export default function Page() {
           </aside>
 
           <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-            <section className="rounded-[32px] border border-white/75 bg-white/72 p-6 shadow-[0_32px_80px_-44px_rgba(15,118,110,0.45)] backdrop-blur-xl sm:p-7">
-              <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-                <div className="max-w-3xl">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[#d8f1eb] bg-[#f5fffd] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[#11998e]">
-                    <Activity className="h-3.5 w-3.5" />
-                    Real-Time Admin Snapshot
-                  </div>
-                  <h2 className="mt-4 text-3xl font-black tracking-tight text-[#06322e] sm:text-4xl">
-                    Monitor platform health at a glance.
-                  </h2>
-                  <p className="mt-3 max-w-2xl text-sm leading-7 text-[#456e68] sm:text-base">
-                    A clean overview of the metrics admins check first: shipment movement, approval workload,
-                    parcel risk, and revenue performance across the network.
-                  </p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[360px]">
-                  <div className="rounded-[24px] border border-[#dbf0eb] bg-[linear-gradient(135deg,_#effefa_0%,_#ffffff_100%)] p-4">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#11998e]">Admin On Duty</p>
-                    <p className="mt-2 text-lg font-black text-[#06322e]">{adminName}</p>
-                    <p className="mt-1 text-sm text-[#4e7771]">Overseeing live operations and escalations.</p>
-                  </div>
-                  <div className="rounded-[24px] border border-[#dbf0eb] bg-[linear-gradient(135deg,_#effefa_0%,_#ffffff_100%)] p-4">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#11998e]">Last Refresh</p>
-                    <p className="mt-2 text-lg font-black text-[#06322e]">{todayLabel}</p>
-                    <p className="mt-1 text-sm text-[#4e7771]">Status feed synced for dashboard overview cards.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-2">
-                {overviewPills.map((pill) => (
-                  <span
-                    key={pill}
-                    className="inline-flex rounded-full border border-[#d9f0eb] bg-[#f6fffd] px-3 py-1.5 text-xs font-bold text-[#0f766e]"
-                  >
-                    {pill}
-                  </span>
-                ))}
-              </div>
+            <section className="px-1 pt-1">
+              <h2 className="text-3xl font-black tracking-tight text-[#06322e]">Operational Overview</h2>
+              <p className="mt-1 text-lg italic text-[#5d8d89]">
+                Monitoring PakiShip logistics, {adminName}. Updated {todayLabel}.
+              </p>
             </section>
 
             <section className="mt-6">
-              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h3 className="text-2xl font-black tracking-tight text-[#06322e]">Key Platform KPIs</h3>
-                  <p className="text-sm text-[#4e7771]">Quick overview cards designed for fast operational scanning.</p>
-                </div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#d7ede8] bg-white/80 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-[#0f766e]">
-                  <CheckCheck className="h-3.5 w-3.5" />
-                  Monitoring Live Signals
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4">
                 {kpiMetrics.map((metric) => (
                   <KpiCard key={metric.label} metric={metric} />
                 ))}

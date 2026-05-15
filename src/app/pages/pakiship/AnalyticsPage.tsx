@@ -19,6 +19,7 @@ import {
   PackageCheck,
   PackagePlus,
   PackageX,
+  AlertTriangle,
   Filter,
   Navigation,
 } from 'lucide-react';
@@ -38,6 +39,7 @@ interface AnalyticsSummary {
   cancelled: string;
   chartData: AnalyticsPoint[];
   delivered: string;
+  lostReports: string;
   pending: string;
   revenue: string;
 }
@@ -61,6 +63,7 @@ export default function AnalyticsPage() {
       delivered: "1,240",
       pending: "85",
       cancelled: "12",
+      lostReports: "4",
       chartData: [
         { month: '08:00', revenue: 40000 },
         { month: '10:00', revenue: 85000 },
@@ -74,6 +77,7 @@ export default function AnalyticsPage() {
       delivered: "9,840",
       pending: "310",
       cancelled: "45",
+      lostReports: "11",
       chartData: [
         { month: 'Mon', revenue: 580000 },
         { month: 'Tue', revenue: 620000 },
@@ -89,6 +93,7 @@ export default function AnalyticsPage() {
       delivered: "42,150",
       pending: "842",
       cancelled: "112",
+      lostReports: "27",
       chartData: [
         { month: 'Week 1', revenue: 4200000 },
         { month: 'Week 2', revenue: 4800000 },
@@ -101,6 +106,7 @@ export default function AnalyticsPage() {
       delivered: "84,120",
       pending: "1,204",
       cancelled: "342",
+      lostReports: "73",
       chartData: [
         { month: 'Jan', revenue: 4250000 },
         { month: 'Feb', revenue: 4850000 },
@@ -242,11 +248,12 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
             <StatCard label="Total Revenue" value={activeData.revenue} trend="+24.2%" trendUp={true} icon={<Wallet className="w-4 h-4" />} />
             <StatCard label="Parcels Delivered" value={activeData.delivered} trend="+12.5%" trendUp={true} icon={<PackageCheck className="w-4 h-4" />} />
             <StatCard label="Parcels Pending" value={activeData.pending} trend="-8.1%" trendUp={true} icon={<PackagePlus className="w-4 h-4" />} />
             <StatCard label="Parcels Cancelled" value={activeData.cancelled} trend="+1.1%" trendUp={false} icon={<PackageX className="w-4 h-4" />} />
+            <StatCard label="Open Lost Parcel Reports" value={activeData.lostReports} trend="-4.6%" trendUp={false} icon={<AlertTriangle className="w-4 h-4" />} />
           </div>
 
           <div className="grid grid-cols-1 gap-8">
