@@ -1,0 +1,137 @@
+// 'use client' directive for client-side interactivity
+'use client';
+
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/modules/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/modules/components/ui/card';
+import { Badge } from '@/modules/components/ui/badge'; // Assuming a Badge component exists; otherwise use a styled span
+
+// Reuse the ShipmentRecord type and sample data (could be imported from a shared module)
+interface ShipmentRecord {
+  id: string;
+  store: string;
+  sender: string;
+  receiver: string;
+  location: string;
+  destination: string;
+  quantity: string;
+  amount: string;
+  status: 'In Transit' | 'Pending' | 'Delivered';
+  driver: string;
+  eta: string;
+  date: string;
+}
+
+// Sample data – in a real app this would be fetched from an API
+const shipments: ShipmentRecord[] = [
+  {
+    id: 'PKS-2026-120',
+    store: '7-Eleven P. Noval',
+    sender: 'Miguel Santos',
+    receiver: 'Carla Mendoza',
+    location: '1043 P. Noval St, Sampaloc, Manila',
+    destination: '2412 Dapitan St., Sampaloc, Manila',
+    quantity: '450 Units',
+    amount: '12,500',
+    status: 'In Transit',
+    driver: 'John Salazar',
+    eta: '12 mins',
+    date: 'Apr 16, 2026',
+  },
+  // Additional shipment objects can be added here
+];
+
+export default function ShipmentDetailPage() {
+  const { id } = useParams(); // URL param like /pakiship/shipments/[id]
+  const router = useRouter();
+
+  // Find shipment by ID; fallback to first entry for demo purposes
+  const shipment = shipments.find((s) => s.id === id) ?? shipments[0];
+
+  const statusColors: Record<string, string> = {
+    'In Transit': 'bg-blue-50 text-blue-600 border-blue-100',
+    Delivered: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    Pending: 'bg-amber-50 text-amber-600 border-amber-100',
+  };
+
+  const timelineSteps = ['Pending', 'In Transit', 'Delivered'];
+
+  return (
+    <div className="min-h-screen bg-[#F0F9F8] p-8 font-sans text-[#1A5D56]">
+      <Button
+        variant="ghost"
+        className="mb-6 flex items-center gap-2 text-[#39B5A8]"
+        onClick={() => router.back()}
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to Shipments
+      </Button>
+
+      <Card className="max-w-4xl mx-auto bg-white shadow-lg">
+        <CardHeader className="p-6 border-b border-[#39B5A8]/10">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl font-bold text-[#041614]">
+              Shipment {shipment.id}
+            </CardTitle>
+            <span
+              className={`inline-flex items-center rounded-lg border px-3 py-1 text-xs font-black uppercase ${statusColors[shipment.status]}`}
+            >
+              {shipment.status}
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6 space-y-8">
+          {/* Timeline */}
+          <section>
+            <h2 className="mb-4 text-xl font-semibold text-[#041614]">Status Timeline</h2>
+            <div className="flex flex-col space-y-4">
+              {timelineSteps.map((step) => {
+                const isActive =
+                  step === shipment.status ||
+                  (step === 'Pending' && shipment.status === 'Pending') ||
+                  (step === 'In Transit' && ['In Transit', 'Delivered'].includes(shipment.status));
+                return (
+                  <div key={step} className="flex items-center">
+                    <div
+                      className={`h-4 w-4 rounded-full mr-3 ${isActive ? 'bg-[#39B5A8]' : 'bg-gray-300'}`}
+                    />
+                    <span className="text-sm font-medium text-[#041614]">{step}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Sender / Receiver */}
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-[#041614]">Sender</h3>
+              <p className="text-sm text-[#1A5D56]"><strong>Name:</strong> {shipment.sender}</p>
+              <p className="text-sm text-[#1A5D56]"><strong>Address:</strong> {shipment.location}</p>
+            </div>
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-[#041614]">Receiver</h3>
+              <p className="text-sm text-[#1A5D56]"><strong>Name:</strong> {shipment.receiver}</p>
+              <p className="text-sm text-[#1A5D56]"><strong>Address:</strong> {shipment.destination}</p>
+            </div>
+          </section>
+
+          {/* Payment Details */}
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-[#041614]">Payment</h3>
+              <p className="text-sm text-[#1A5D56]"><strong>Amount:</strong> PHP {shipment.amount}</p>
+              <p className="text-sm text-[#1A5D56]"><strong>Quantity:</strong> {shipment.quantity}</p>
+            </div>
+            <div>
+              <h3 className="mb-2 text-lg font-semibold text-[#041614]">Logistics</h3>
+              <p className="text-sm text-[#1A5D56]"><strong>Driver:</strong> {shipment.driver}</p>
+              <p className="text-sm text-[#1A5D56]"><strong>ETA:</strong> {shipment.eta}</p>
+              <p className="text-sm text-[#1A5D56]"><strong>Date:</strong> {shipment.date}</p>
+            </div>
+          </section>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
