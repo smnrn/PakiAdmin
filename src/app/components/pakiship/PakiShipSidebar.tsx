@@ -5,14 +5,25 @@ import {
   Settings,
   LogOut,
   LayoutDashboard,
+  Store,
   User,
+  Users,
   UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { pakiShipLogo } from '../../lib/assets';
 
 interface PakiShipSidebarProps {
-  activeTab: 'dashboard' | 'shipments' | 'analytics' | 'tracking' | 'profile' | 'settings' | 'user-acceptance';
+  activeTab:
+    | 'dashboard'
+    | 'shipments'
+    | 'drivers'
+    | 'drop-off-operators'
+    | 'analytics'
+    | 'tracking'
+    | 'profile'
+    | 'settings'
+    | 'user-acceptance';
 }
 
 export default function PakiShipSidebar({ activeTab }: PakiShipSidebarProps) {
@@ -42,6 +53,18 @@ export default function PakiShipSidebar({ activeTab }: PakiShipSidebarProps) {
           onClick={() => navigate('/pakiship/shipments')}
           icon={<Truck className="w-5 h-5" />}
           label="Shipments"
+        />
+        <NavButton
+          active={activeTab === 'drivers'}
+          onClick={() => navigate('/pakiship/drivers')}
+          icon={<Users className="w-5 h-5" />}
+          label="Drivers"
+        />
+        <NavButton
+          active={activeTab === 'drop-off-operators'}
+          onClick={() => navigate('/pakiship/drop-off-operators')}
+          icon={<Store className="w-5 h-5" />}
+          label="Drop-Off Operators"
         />
         <NavButton
           active={activeTab === 'analytics'}

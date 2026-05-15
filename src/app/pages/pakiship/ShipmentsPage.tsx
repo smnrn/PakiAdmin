@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '../../lib/router';
 import {
+  AlertTriangle,
   CalendarDays,
   Filter,
   Download,
@@ -12,57 +13,20 @@ import {
   LogOut,
   X,
 } from 'lucide-react';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '../../components/ui/pagination';
 import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../../components/ui/select';
-
-// Change const shipments to useState
-const [shipments, setShipments] = useState<ShipmentRecord[]>([
-  {
-    id: 'PKS-2026-120',
-    store: '7-Eleven P. Noval',
-    sender: 'Miguel Santos',
-    receiver: 'Carla Mendoza',
-    location: '1043 P. Noval St, Sampaloc, Manila',
-    destination: '2412 Dapita n St., Sampaloc, Manila',
-    quantity: '450 Units',
-    amount: '12,500',
-    status: 'In Transit',
-    driver: 'John Salazar',
-    eta: '12 mins',
-    date: 'Apr 16, 2026',
-  },
-  // ... other shipment objects remain unchanged
-]);
-
-// State for dialog
-const [selectedShipment, setSelectedShipment] = useState<ShipmentRecord | null>(null);
-const [isDialogOpen, setIsDialogOpen] = useState(false);
-const [newStatus, setNewStatus] = useState<string>('');
-const [reason, setReason] = useState<string>('');
-
-const openStatusDialog = (shipment: ShipmentRecord) => {
-  setSelectedShipment(shipment);
-  setNewStatus(shipment.status);
-  setReason('');
-  setIsDialogOpen(true);
-};
-
-const handleStatusUpdate = () => {
-  if (!selectedShipment) return;
-  if (!reason.trim()) {
-    toast.error('Reason is required');
-    return;
-  }
-  setShipments((prev) =>
-    prev.map((s) =>
-      s.id === selectedShipment.id ? { ...s, status: newStatus as any } : s
-    )
-  );
-  toast.success(`Shipment status updated to ${newStatus}`);
-  setIsDialogOpen(false);
-};
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
@@ -116,34 +80,6 @@ export default function ShipmentsPage() {
       eta: '12 mins',
       date: 'Apr 16, 2026',
     },
-    // ... other shipment objects remain unchanged
-  ]);
-
-  // Dialog state
-  const [selectedShipment, setSelectedShipment] = useState<ShipmentRecord | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newStatus, setNewStatus] = useState<string>('');
-  const [reason, setReason] = useState<string>('');
-
-  const openStatusDialog = (shipment: ShipmentRecord) => {
-    setSelectedShipment(shipment);
-    setNewStatus(shipment.status);
-    setReason('');
-    setIsDialogOpen(true);
-  };
-
-  const handleStatusUpdate = () => {
-    if (!selectedShipment) return;
-    if (!reason.trim()) {
-      toast.error('Reason is required');
-      return;
-    }
-    setShipments((prev) =>
-      prev.map((s) => (s.id === selectedShipment.id ? { ...s, status: newStatus as any } : s))
-    );
-    toast.success(`Shipment status updated to ${newStatus}`);
-    setIsDialogOpen(false);
-  };
     {
       id: 'PKS-2026-120',
       store: '7-Eleven P. Noval',
@@ -312,7 +248,37 @@ export default function ShipmentsPage() {
       eta: 'Delivered',
       date: 'Apr 12, 2026',
     },
-  ];
+  ]);
+
+  const [selectedShipment, setSelectedShipment] = useState<ShipmentRecord | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newStatus, setNewStatus] = useState<string>('');
+  const [reason, setReason] = useState<string>('');
+
+  const openStatusDialog = (shipment: ShipmentRecord) => {
+    setSelectedShipment(shipment);
+    setNewStatus(shipment.status);
+    setReason('');
+    setIsDialogOpen(true);
+  };
+
+  const handleStatusUpdate = () => {
+    if (!selectedShipment) return;
+    if (!reason.trim()) {
+      toast.error('Reason is required');
+      return;
+    }
+
+    setShipments((prev) =>
+      prev.map((shipment) =>
+        shipment.id === selectedShipment.id
+          ? { ...shipment, status: newStatus as ShipmentRecord['status'] }
+          : shipment,
+      ),
+    );
+    toast.success(`Shipment status updated to ${newStatus}`);
+    setIsDialogOpen(false);
+  };
 
   const driverOptions = ['All Drivers', ...Array.from(new Set(shipments.map((shipment) => shipment.driver)))];
   const activeFilterCount = [
@@ -485,6 +451,13 @@ export default function ShipmentsPage() {
             </div>
             <div className="flex items-center gap-3">
               <Button
+                variant="outline"
+                onClick={() => navigate('/pakiship/shipments/lost-parcels')}
+                className="rounded-xl border-[#39B5A8]/15 bg-white font-bold text-[#1A5D56] hover:bg-[#F0F9F8]"
+              >
+                <AlertTriangle className="mr-2 h-4 w-4 text-red-500" /> Lost Parcel Cases
+              </Button>
+              <Button
                 onClick={handleExport}
                 className="rounded-xl bg-[#39B5A8] font-bold text-white shadow-lg shadow-[#39B5A8]/20 hover:bg-[#2F9D91]"
               >
@@ -635,97 +608,17 @@ export default function ShipmentsPage() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left">
-                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-[#39B5A8]">Actions</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-[#39B5A8]/5">
-        {paginatedShipments.length > 0 ? (
-          paginatedShipments.map((shipment) => (
-            <tr key={shipment.id} className="group cursor-pointer transition-colors hover:bg-[#F0F9F8]/30" onClick={() => navigate(`/pakiship/shipments/${shipment.id}`)}>
-              <td className="px-8 py-6">
-                <p className="text-xs font-bold text-[#041614]">{shipment.id}</p>
-                <p className="mt-1 text-xs font-black text-[#041614] group-hover:text-[#39B5A8]">{shipment.store}</p>
-                <p className="text-[10px] font-medium text-gray-400">{shipment.date}</p>
-              </td>
-              <td className="px-6 py-6">
-                <p className="text-xs font-bold text-[#1A5D56]">{shipment.sender}</p>
-                <p className="max-w-[220px] truncate text-[10px] text-gray-400">{shipment.location}</p>
-              </td>
-              <td className="px-6 py-6">
-                <p className="text-xs font-bold text-[#1A5D56]">{shipment.receiver}</p>
-                <p className="max-w-[220px] truncate text-[10px] text-gray-400">{shipment.destination}</p>
-              </td>
-              <td className="px-6 py-6">
-                <p className="text-xs font-bold text-[#1A5D56]">{shipment.driver}</p>
-                <p className="text-[10px] font-bold text-[#39B5A8]">ETA: {shipment.eta}</p>
-              </td>
-              <td className="px-6 py-6">
-                <p className="text-xs font-black text-[#1A5D56]">PHP {shipment.amount}</p>
-                <p className="text-[10px] font-bold uppercase tracking-tight text-gray-400">{shipment.quantity}</p>
-              </td>
-              <td className="px-8 py-6 text-center">
-                <span
-                  className={`inline-flex items-center justify-center rounded-lg border px-3 py-1 text-[10px] font-black uppercase ${
-                    shipment.status === 'In Transit'
-                      ? 'border-blue-100 bg-blue-50 text-blue-600'
-                      : shipment.status === 'Delivered'
-                        ? 'border-emerald-100 bg-emerald-50 text-emerald-600'
-                        : 'border-amber-100 bg-amber-50 text-amber-600'
-                  }`}
-                >
-                  {shipment.status}
-                </span>
-              </td>
-              <td className="px-4 py-6 text-center">
-                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); openStatusDialog(shipment); }}>Update</Button>
-              </td>
-            </tr>
-          ))
-        ) : (
-          <tr>
-            <td colSpan={7} className="px-10 py-20 text-center">
-              <div className="flex flex-col items-center gap-2 opacity-30">
-                <Search className="h-8 w-8" />
-                <p className="text-sm font-black uppercase tracking-widest text-[#1A5D56]">No Shipments Found</p>
-              </div>
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-  {/* Status Update Dialog */}
-  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>Update Shipment Status</DialogTitle>
-        <DialogDescription>Provide a new status and a mandatory reason.</DialogDescription>
-      </DialogHeader>
-      <div className="grid gap-4 py-4">
-        <Select value={newStatus} onValueChange={setNewStatus}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="In Transit">In Transit</SelectItem>
-            <SelectItem value="Pending">Pending</SelectItem>
-            <SelectItem value="Delivered">Delivered</SelectItem>
-            <SelectItem value="Cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-        <Textarea
-          placeholder="Reason for status change"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          className="resize-none"
-        />
-      </div>
-      <DialogFooter>
-        <Button onClick={handleStatusUpdate}>Submit</Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-
+                  <thead className="bg-[#F0F9F8]">
+                    <tr>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-[#39B5A8]">Shipment</th>
+                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[#39B5A8]">Sender</th>
+                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[#39B5A8]">Receiver</th>
+                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[#39B5A8]">Driver</th>
+                      <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-[#39B5A8]">Value</th>
+                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-[#39B5A8]">Status</th>
+                      <th className="px-8 py-5 text-center text-[10px] font-black uppercase tracking-widest text-[#39B5A8]">Actions</th>
+                    </tr>
+                  </thead>
                   <tbody className="divide-y divide-[#39B5A8]/5">
                     {paginatedShipments.length > 0 ? (
                       paginatedShipments.map((shipment) => (
@@ -764,11 +657,23 @@ export default function ShipmentsPage() {
                               {shipment.status}
                             </span>
                           </td>
+                          <td className="px-4 py-6 text-center">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openStatusDialog(shipment);
+                              }}
+                            >
+                              Update
+                            </Button>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} className="px-10 py-20 text-center">
+                        <td colSpan={7} className="px-10 py-20 text-center">
                           <div className="flex flex-col items-center gap-2 opacity-30">
                             <Search className="h-8 w-8" />
                             <p className="text-sm font-black uppercase tracking-widest text-[#1A5D56]">No Shipments Found</p>
@@ -838,6 +743,36 @@ export default function ShipmentsPage() {
               </div>
             </CardContent>
           </Card>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Update Shipment Status</DialogTitle>
+                <DialogDescription>Provide a new status and a mandatory reason.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <Select value={newStatus} onValueChange={setNewStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="In Transit">In Transit</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Delivered">Delivered</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Textarea
+                  placeholder="Reason for status change"
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  className="resize-none"
+                />
+              </div>
+              <DialogFooter>
+                <Button onClick={handleStatusUpdate}>Submit</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </div>

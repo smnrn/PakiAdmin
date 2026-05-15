@@ -283,8 +283,8 @@ export default function DashboardPage() {
               : 'border-[#FFE7B8] bg-[#FFF7E7] text-[#C47A00]',
           action: 'View Report',
           detail: `${report.id} is tied to the ${report.route} route. Review the latest rider note, contact the receiving hub, and decide whether to escalate or close the report.`,
-          followUpLabel: 'Open Analytics',
-          followUpPath: '/pakiship/analytics',
+          followUpLabel: 'Open Lost Parcel Cases',
+          followUpPath: '/pakiship/shipments/lost-parcels',
         }));
 
   const selectedQuickActionItem =
