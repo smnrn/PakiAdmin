@@ -30,6 +30,7 @@ import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type AnalyticsRange = 'Today' | 'Last 7 Days' | 'Last 30 Days' | 'Year to Date';
+type RevenueBreakdown = 'Week' | 'Month';
 
 interface AnalyticsPoint {
   month: string;
@@ -50,6 +51,9 @@ export default function AnalyticsPage() {
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [dateRange, setDateRange] = useState<AnalyticsRange>('Year to Date');
+  const [revenueBreakdown, setRevenueBreakdown] = useState<RevenueBreakdown>('Week');
+  const [customStartDate, setCustomStartDate] = useState('2026-05-01');
+  const [customEndDate, setCustomEndDate] = useState('2026-05-15');
 
   const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
@@ -146,14 +150,60 @@ export default function AnalyticsPage() {
     { route: 'P. Campa', to: 'Lerma Street', trips: 210, revenue: '₱52K', percentage: 40 },
   ];
 
-  const handleExport = () => {
+  const shipmentVolume = [
+    { label: 'Mon', value: 320 },
+    { label: 'Tue', value: 410 },
+    { label: 'Wed', value: 385 },
+    { label: 'Thu', value: 492 },
+    { label: 'Fri', value: 530 },
+    { label: 'Sat', value: 455 },
+    { label: 'Sun', value: 300 },
+  ];
+
+  const revenueTrend =
+    revenueBreakdown === 'Week'
+      ? [
+          { label: 'W1', value: 4200000 },
+          { label: 'W2', value: 4800000 },
+          { label: 'W3', value: 5100000 },
+          { label: 'W4', value: 4300000 },
+        ]
+      : [
+          { label: 'Jan', value: 12200000 },
+          { label: 'Feb', value: 13500000 },
+          { label: 'Mar', value: 14800000 },
+          { label: 'Apr', value: 15800000 },
+          { label: 'May', value: 16400000 },
+        ];
+
+  const lostParcelRate = [
+    { label: 'W1', value: 3.4 },
+    { label: 'W2', value: 2.9 },
+    { label: 'W3', value: 2.1 },
+    { label: 'W4', value: 1.8 },
+  ];
+
+  const deliveryTimeByRoute = [
+    { route: 'Dapitan - P. Noval', minutes: 31 },
+    { route: 'Espana - Lacson', minutes: 46 },
+    { route: 'UST - Lerma', minutes: 28 },
+    { route: 'Tayuman - Quiapo', minutes: 39 },
+  ];
+
+  const driverLeaderboard = [
+    { name: 'Arnel Cruz', completion: '98%', rating: '4.9' },
+    { name: 'Ramon Lee', completion: '94%', rating: '4.7' },
+    { name: 'Mika Santos', completion: '86%', rating: '4.3' },
+  ];
+
+  const handleExport = (format: 'csv' | 'pdf' = 'csv') => {
     const headers = ["Period", "Revenue (PHP)"];
     const rows = activeData.chartData.map((dataPoint) => [dataPoint.month, dataPoint.revenue]);
     const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map((entry) => entry.join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `PakiShip_${dateRange.replace(/ /g, '_')}_Report.csv`);
+    link.setAttribute("download", `PakiShip_${customStartDate}_to_${customEndDate}_Report.${format}`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -241,7 +291,7 @@ export default function AnalyticsPage() {
                 </div>
               </div>
               <Button 
-                onClick={handleExport}
+                onClick={() => handleExport('csv')}
                 className="bg-[#39B5A8] hover:bg-[#2F9D91] text-white rounded-xl shadow-lg shadow-[#39B5A8]/20"
               >
                 <Download className="w-4 h-4 mr-2" /> Export Data
@@ -258,6 +308,96 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-8">
+            <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
+              <CardHeader className="p-10 pb-2">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div>
+                    <CardTitle className="text-2xl font-black text-[#041614]">Custom Performance Report</CardTitle>
+                    <p className="text-sm text-gray-400 mt-1 font-medium">Apply a custom date range and export the report as CSV or PDF.</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input type="date" value={customStartDate} onChange={(event) => setCustomStartDate(event.target.value)} className="h-11 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 text-sm font-bold text-[#1A5D56] outline-none" />
+                    <input type="date" value={customEndDate} onChange={(event) => setCustomEndDate(event.target.value)} className="h-11 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 text-sm font-bold text-[#1A5D56] outline-none" />
+                    <Button onClick={() => handleExport('csv')} className="rounded-xl bg-[#39B5A8] text-white hover:bg-[#2F9D91]">
+                      <Download className="w-4 h-4 mr-2" /> CSV
+                    </Button>
+                    <Button onClick={() => handleExport('pdf')} variant="outline" className="rounded-xl border-[#39B5A8]/20 bg-white text-[#1A5D56]">
+                      <Download className="w-4 h-4 mr-2" /> PDF
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
+              <MiniBarChart title="Shipment Volume" subtitle="Daily and weekly shipment demand patterns" data={shipmentVolume} />
+
+              <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
+                <CardHeader className="p-10 pb-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-2xl font-black text-[#041614]">Revenue Trend</CardTitle>
+                      <p className="text-sm text-gray-400 mt-1 font-medium">Broken down by week or month</p>
+                    </div>
+                    <div className="flex rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] p-1">
+                      {(['Week', 'Month'] as const).map((breakdown) => (
+                        <button
+                          key={breakdown}
+                          onClick={() => setRevenueBreakdown(breakdown)}
+                          className={`rounded-lg px-4 py-2 text-xs font-black ${revenueBreakdown === breakdown ? 'bg-[#39B5A8] text-white' : 'text-[#1A5D56]'}`}
+                        >
+                          {breakdown}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-10">
+                  <SimpleBars data={revenueTrend} valuePrefix="₱" />
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
+              <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm">
+                <CardHeader className="p-8 pb-4">
+                  <CardTitle className="text-xl font-black text-[#041614]">Driver Leaderboard</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 px-8 pb-8">
+                  {driverLeaderboard.map((driver, index) => (
+                    <div key={driver.name} className="flex items-center justify-between rounded-2xl bg-[#F0F9F8] p-4">
+                      <div>
+                        <p className="text-sm font-black text-[#041614]">{index + 1}. {driver.name}</p>
+                        <p className="text-xs font-bold text-[#39B5A8]">{driver.completion} completion</p>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#1A5D56]">{driver.rating}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <MiniBarChart title="Lost Parcel Rate" subtitle="Loss incidents over time" data={lostParcelRate} suffix="%" />
+
+              <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm">
+                <CardHeader className="p-8 pb-4">
+                  <CardTitle className="text-xl font-black text-[#041614]">Average Delivery Time</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 px-8 pb-8">
+                  {deliveryTimeByRoute.map((route) => (
+                    <div key={route.route}>
+                      <div className="flex items-center justify-between text-xs font-black">
+                        <span className="text-[#041614]">{route.route}</span>
+                        <span className="text-[#39B5A8]">{route.minutes} mins</span>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#F0F9F8]">
+                        <div className="h-full rounded-full bg-[#39B5A8]" style={{ width: `${Math.min(100, route.minutes * 2)}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+
             <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
               <CardHeader className="p-10 pb-2">
                 <div className="flex items-center justify-between">
@@ -429,5 +569,45 @@ function StatCard({ label, value, trend, trendUp, icon }: StatCardProps) {
         {icon}
       </div>
     </div>
+  );
+}
+
+interface ChartDatum {
+  label: string;
+  value: number;
+}
+
+function SimpleBars({ data, suffix = '', valuePrefix = '' }: { data: ChartDatum[]; suffix?: string; valuePrefix?: string }) {
+  const maxValue = Math.max(...data.map((item) => item.value));
+
+  return (
+    <div className="flex h-56 items-end gap-4">
+      {data.map((item) => (
+        <div key={item.label} className="flex flex-1 flex-col items-center gap-3">
+          <div className="flex h-44 w-full items-end">
+            <div
+              className="w-full rounded-t-2xl bg-gradient-to-t from-[#39B5A8] to-[#50E3C2] shadow-lg shadow-[#39B5A8]/10"
+              style={{ height: `${Math.max(12, (item.value / maxValue) * 100)}%` }}
+              title={`${valuePrefix}${item.value}${suffix}`}
+            />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-wider text-[#1A5D56]/60">{item.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MiniBarChart({ title, subtitle, data, suffix = '' }: { title: string; subtitle: string; data: ChartDatum[]; suffix?: string }) {
+  return (
+    <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
+      <CardHeader className="p-10 pb-2">
+        <CardTitle className="text-2xl font-black text-[#041614]">{title}</CardTitle>
+        <p className="text-sm text-gray-400 mt-1 font-medium">{subtitle}</p>
+      </CardHeader>
+      <CardContent className="p-10">
+        <SimpleBars data={data} suffix={suffix} />
+      </CardContent>
+    </Card>
   );
 }

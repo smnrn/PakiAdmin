@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from '../../lib/router';
 import {
   Truck,
@@ -24,6 +24,9 @@ export default function TrackingPage() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [regionFilter, setRegionFilter] = useState('All');
+  const [driverFilter, setDriverFilter] = useState('All Drivers');
 
   const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
@@ -47,6 +50,7 @@ export default function TrackingPage() {
       eta: '35 mins',
       distance: '12.5 km',
       status: 'On Route',
+      region: 'Manila',
       lastUpdate: '2 mins ago',
       lat: 14.5547,
       lng: 121.0244
@@ -61,6 +65,7 @@ export default function TrackingPage() {
       eta: '50 mins',
       distance: '18.2 km',
       status: 'On Route',
+      region: 'Quezon City',
       lastUpdate: '5 mins ago',
       lat: 14.6760,
       lng: 121.0537
@@ -75,11 +80,38 @@ export default function TrackingPage() {
       eta: '1.2 hours',
       distance: '8.7 km',
       status: 'On Route',
+      region: 'Manila',
       lastUpdate: '1 min ago',
       lat: 14.6091,
       lng: 120.9842
     },
+    {
+      id: 'SHP-2024-1851',
+      driver: 'Mika Santos',
+      vehicle: 'JKL-4491',
+      from: 'QC Hub',
+      to: 'Makati Drop Point',
+      progress: 38,
+      eta: 'Delayed',
+      distance: '14.1 km',
+      status: 'Stuck',
+      region: 'Makati',
+      lastUpdate: '2 hrs 15 mins ago',
+      lat: 14.5547,
+      lng: 121.0244
+    },
   ];
+
+  const regions = useMemo(() => ['All', ...Array.from(new Set(liveShipments.map((shipment) => shipment.region)))], []);
+  const drivers = useMemo(() => ['All Drivers', ...Array.from(new Set(liveShipments.map((shipment) => shipment.driver)))], []);
+  const filteredLiveShipments = liveShipments.filter((shipment) => {
+    const matchesStatus = statusFilter === 'All' || shipment.status === statusFilter;
+    const matchesRegion = regionFilter === 'All' || shipment.region === regionFilter;
+    const matchesDriver = driverFilter === 'All Drivers' || shipment.driver === driverFilter;
+    return matchesStatus && matchesRegion && matchesDriver;
+  });
+  const [selectedShipment, setSelectedShipment] = useState(liveShipments[0]);
+  const stuckShipments = liveShipments.filter((shipment) => shipment.status === 'Stuck');
 
   return (
     <div className="flex h-screen bg-[#F0F9F8] font-sans text-[#1A5D56]">
@@ -190,20 +222,69 @@ export default function TrackingPage() {
             </div>
           </div>
 
-          {/* Map Placeholder */}
           <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-lg overflow-hidden">
-            <div className="relative h-[400px] bg-gradient-to-br from-[#F0F9F8] to-[#E0F2F1] flex items-center justify-center">
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-[#39B5A8] rounded-full animate-pulse"></div>
-                <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-[#39B5A8] rounded-full animate-pulse delay-75"></div>
-                <div className="absolute top-2/3 left-1/3 w-3 h-3 bg-[#39B5A8] rounded-full animate-pulse delay-150"></div>
+            <CardHeader className="p-7 pb-4">
+              <div className="grid gap-4 xl:grid-cols-3">
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-12 rounded-2xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 text-sm font-bold text-[#041614] outline-none">
+                  {['All', 'On Route', 'Stuck'].map((status) => <option key={status}>{status}</option>)}
+                </select>
+                <select value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)} className="h-12 rounded-2xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 text-sm font-bold text-[#041614] outline-none">
+                  {regions.map((region) => <option key={region}>{region}</option>)}
+                </select>
+                <select value={driverFilter} onChange={(event) => setDriverFilter(event.target.value)} className="h-12 rounded-2xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 text-sm font-bold text-[#041614] outline-none">
+                  {drivers.map((driver) => <option key={driver}>{driver}</option>)}
+                </select>
               </div>
-              <div className="text-center z-10">
-                <MapPin className="w-16 h-16 text-[#39B5A8] mx-auto mb-4 opacity-40" />
-                <p className="text-lg font-bold text-[#1A5D56] opacity-60">Interactive Map View</p>
-                <p className="text-sm text-[#39B5A8] opacity-50 mt-2">Google Maps integration would be rendered here</p>
+            </CardHeader>
+            <CardContent className="grid gap-6 p-7 pt-0 xl:grid-cols-[1.4fr_0.8fr]">
+              <div className="relative h-[460px] overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#E8FCF8] to-[#F8FFFD]">
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(57,181,168,0.13)_1px,transparent_1px),linear-gradient(rgba(57,181,168,0.13)_1px,transparent_1px)] bg-[size:76px_76px]" />
+                {filteredLiveShipments.map((shipment, index) => (
+                  <button
+                    key={shipment.id}
+                    type="button"
+                    onClick={() => setSelectedShipment(shipment)}
+                    className={`absolute rounded-full border-4 border-white p-4 text-white shadow-xl ${
+                      shipment.status === 'Stuck' ? 'bg-red-500' : 'bg-[#39B5A8]'
+                    }`}
+                    style={{ left: `${18 + index * 20}%`, top: `${24 + (index % 3) * 18}%` }}
+                    title={shipment.id}
+                  >
+                    <Truck className="h-5 w-5" />
+                  </button>
+                ))}
+                <div className="absolute bottom-5 left-5 rounded-2xl bg-white px-5 py-4 text-sm font-black text-[#1A5D56] shadow">
+                  Live map: click a vehicle pin to inspect driver details, parcel status, and ETA.
+                </div>
               </div>
-            </div>
+
+              <div className="space-y-5">
+                <div className="rounded-[2rem] border border-[#39B5A8]/10 bg-[#F8FFFD] p-6">
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-[#39B5A8]">Selected Pin</p>
+                  <h3 className="mt-4 text-2xl font-black text-[#041614]">{selectedShipment.id}</h3>
+                  <p className="mt-3 text-sm font-black text-[#1A5D56]">Driver: {selectedShipment.driver}</p>
+                  <p className="mt-2 text-sm font-bold text-[#1A5D56]/80">Status: {selectedShipment.status}</p>
+                  <p className="mt-2 text-sm font-bold text-[#1A5D56]/80">Region: {selectedShipment.region}</p>
+                  <p className="mt-2 text-sm font-bold text-[#1A5D56]/80">ETA: {selectedShipment.eta}</p>
+                  <p className="mt-2 text-sm font-bold text-[#1A5D56]/80">Last movement: {selectedShipment.lastUpdate}</p>
+                </div>
+
+                <div className="rounded-[2rem] border border-red-100 bg-white p-6">
+                  <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-red-600">
+                    <AlertCircle className="h-4 w-4" />
+                    Stuck Shipment Alerts
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {stuckShipments.map((shipment) => (
+                      <button key={shipment.id} type="button" onClick={() => setSelectedShipment(shipment)} className="block w-full rounded-2xl border border-red-100 bg-red-50 p-4 text-left">
+                        <p className="text-sm font-black text-red-700">{shipment.id}</p>
+                        <p className="mt-1 text-xs font-bold text-red-600">No movement for {shipment.lastUpdate}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Active Shipments List */}

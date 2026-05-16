@@ -38,6 +38,7 @@ interface Applicant {
   name: string;
   email: string;
   phone: string;
+  region: string;
   type: ApplicantType;
   applicationDate: string;
   documentCount: number;
@@ -205,6 +206,7 @@ export default function UserAcceptancePage() {
   const [showDropOffRejectModal, setShowDropOffRejectModal] = useState(false);
   const [dropOffRejectionReason, setDropOffRejectionReason] = useState('');
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
@@ -220,6 +222,7 @@ export default function UserAcceptancePage() {
       name: 'Maria Santos',
       email: 'maria.santos@email.com',
       phone: '+63 917 123 4567',
+      region: 'Makati City, Metro Manila',
       type: 'driver',
       applicationDate: '2026-04-25',
       documentCount: 4,
@@ -239,6 +242,7 @@ export default function UserAcceptancePage() {
       name: 'Carlos Reyes',
       email: 'carlos.reyes@email.com',
       phone: '+63 918 234 5678',
+      region: 'Cebu City, Cebu',
       type: 'driver',
       applicationDate: '2026-04-24',
       documentCount: 4,
@@ -259,6 +263,7 @@ export default function UserAcceptancePage() {
       name: 'Juan Cruz',
       email: 'juan.cruz@email.com',
       phone: '+63 919 345 6789',
+      region: 'Davao City, Davao del Sur',
       type: 'driver',
       applicationDate: '2026-04-23',
       documentCount: 3,
@@ -277,6 +282,7 @@ export default function UserAcceptancePage() {
       name: 'Ana Garcia',
       email: 'ana.garcia@business.com',
       phone: '+63 920 456 7890',
+      region: 'Iloilo City, Iloilo',
       type: 'business',
       applicationDate: '2026-04-26',
       documentCount: 5,
@@ -296,6 +302,7 @@ export default function UserAcceptancePage() {
       name: 'Roberto Tan',
       email: 'roberto.tan@shop.com',
       phone: '+63 921 567 8901',
+      region: 'Baguio City, Benguet',
       type: 'business',
       applicationDate: '2026-04-25',
       documentCount: 5,
@@ -374,6 +381,11 @@ export default function UserAcceptancePage() {
   };
 
   const handleReject = (applicantId: string) => {
+    if (!rejectionReason.trim()) {
+      alert('Please provide a written rejection reason.');
+      return;
+    }
+
     setApplicants((current) =>
       current.map((applicant) =>
         applicant.id === applicantId
@@ -382,6 +394,7 @@ export default function UserAcceptancePage() {
       ),
     );
     setSelectedApplicant(null);
+    setRejectionReason('');
   };
 
   const handleApproveDropOff = (application: DropOffApplication) => {
@@ -678,6 +691,7 @@ export default function UserAcceptancePage() {
                   <tr>
                     <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Applicant</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Application Date</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Region</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest text-center">Documents</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest text-right">Status</th>
                   </tr>
@@ -702,6 +716,9 @@ export default function UserAcceptancePage() {
                       </td>
                       <td className="px-6 py-5">
                         <p className="font-semibold text-[#1A5D56]">{new Date(applicant.applicationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      </td>
+                      <td className="px-6 py-5">
+                        <p className="font-semibold text-[#1A5D56]">{applicant.region}</p>
                       </td>
                       <td className="px-6 py-5 text-center">
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F0F9F8] text-[#39B5A8] rounded-full font-bold text-xs">
@@ -782,6 +799,15 @@ export default function UserAcceptancePage() {
                     <div>
                       <p className="text-xs text-gray-400 font-medium">Application Date</p>
                       <p className="font-semibold text-[#1A5D56]">{new Date(selectedApplicant.applicationDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-[#F0F9F8]">
+                      <MapPin className="w-4 h-4 text-[#39B5A8]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium">Region</p>
+                      <p className="font-semibold text-[#1A5D56]">{selectedApplicant.region}</p>
                     </div>
                   </div>
                 </div>
@@ -900,21 +926,29 @@ export default function UserAcceptancePage() {
 
               {/* Action Buttons */}
               {selectedApplicant.status === 'pending' && (
-                <div className="flex gap-4 pt-4">
-                  <button
-                    onClick={() => handleApprove(selectedApplicant.id)}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-500/20"
-                  >
-                    <CheckCircle className="w-5 h-5" />
-                    {selectedApplicant.type === 'driver' ? 'Approve & Activate Driver' : 'Approve'}
-                  </button>
-                  <button
-                    onClick={() => handleReject(selectedApplicant.id)}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-red-500/20"
-                  >
-                    <XCircle className="w-5 h-5" />
-                    Reject
-                  </button>
+                <div className="space-y-4 pt-4">
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(event) => setRejectionReason(event.target.value)}
+                    placeholder="Written rejection reason required before rejecting"
+                    className="w-full min-h-24 resize-none rounded-2xl border border-[#39B5A8]/15 bg-[#F0F9F8]/60 px-5 py-4 font-semibold text-[#041614] outline-none placeholder:text-gray-400 focus:border-[#39B5A8]"
+                  />
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => handleApprove(selectedApplicant.id)}
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-500/20"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                      {selectedApplicant.type === 'driver' ? 'Approve & Activate Driver' : 'Approve'}
+                    </button>
+                    <button
+                      onClick={() => handleReject(selectedApplicant.id)}
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-red-500/20"
+                    >
+                      <XCircle className="w-5 h-5" />
+                      Reject
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

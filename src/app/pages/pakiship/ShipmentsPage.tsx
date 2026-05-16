@@ -41,7 +41,7 @@ interface ShipmentRecord {
   destination: string;
   quantity: string;
   amount: string;
-  status: 'In Transit' | 'Pending' | 'Delivered';
+  status: 'In Transit' | 'Pending' | 'Delivered' | 'Cancelled';
   driver: string;
   eta: string;
   date: string;
@@ -533,20 +533,26 @@ export default function ShipmentsPage() {
                       Status
                     </label>
                     <div className="relative">
-                      <Filter className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
-                      <select
-                        id="status-filter"
-                        value={statusFilter}
-                        onChange={(event) => setStatusFilter(event.target.value)}
-                        className="h-12 w-full appearance-none rounded-2xl border border-[#39B5A8]/10 bg-white pl-11 pr-10 text-sm font-semibold text-[#041614] outline-none transition-all focus:border-[#39B5A8]/30 focus:ring-4 focus:ring-[#39B5A8]/15"
-                      >
-                        {['All', 'In Transit', 'Pending', 'Delivered'].map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                      <Filter className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger
+                          id="status-filter"
+                          className="h-12 w-full rounded-2xl border-[#39B5A8]/15 bg-white pl-11 pr-4 text-sm font-bold text-[#041614] shadow-sm outline-none transition-colors hover:bg-[#F8FCFC] focus:ring-2 focus:ring-[#39B5A8]/20"
+                        >
+                          <SelectValue placeholder="All" />
+                        </SelectTrigger>
+                        <SelectContent className="overflow-hidden rounded-2xl border-[#39B5A8]/15 bg-white p-1 shadow-xl">
+                          {['All', 'In Transit', 'Pending', 'Delivered', 'Cancelled'].map((status) => (
+                            <SelectItem
+                              key={status}
+                              value={status}
+                              className="rounded-xl px-3 py-2 text-sm font-semibold text-[#1A5D56] focus:bg-[#F0F9F8] focus:text-[#041614]"
+                            >
+                              {status}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -555,20 +561,26 @@ export default function ShipmentsPage() {
                       Assigned Driver
                     </label>
                     <div className="relative">
-                      <Truck className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
-                      <select
-                        id="driver-filter"
-                        value={driverFilter}
-                        onChange={(event) => setDriverFilter(event.target.value)}
-                        className="h-12 w-full appearance-none rounded-2xl border border-[#39B5A8]/10 bg-white pl-11 pr-10 text-sm font-semibold text-[#041614] outline-none transition-all focus:border-[#39B5A8]/30 focus:ring-4 focus:ring-[#39B5A8]/15"
-                      >
-                        {driverOptions.map((driver) => (
-                          <option key={driver} value={driver}>
-                            {driver}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                      <Truck className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#39B5A8]/60" />
+                      <Select value={driverFilter} onValueChange={setDriverFilter}>
+                        <SelectTrigger
+                          id="driver-filter"
+                          className="h-12 w-full rounded-2xl border-[#39B5A8]/15 bg-white pl-11 pr-4 text-sm font-bold text-[#041614] shadow-sm outline-none transition-colors hover:bg-[#F8FCFC] focus:ring-2 focus:ring-[#39B5A8]/20"
+                        >
+                          <SelectValue placeholder="All Drivers" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72 overflow-y-auto rounded-2xl border-[#39B5A8]/15 bg-white p-1 shadow-xl">
+                          {driverOptions.map((driver) => (
+                            <SelectItem
+                              key={driver}
+                              value={driver}
+                              className="rounded-xl px-3 py-2 text-sm font-semibold text-[#1A5D56] focus:bg-[#F0F9F8] focus:text-[#041614]"
+                            >
+                              {driver}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -760,6 +772,7 @@ export default function ShipmentsPage() {
                     <SelectItem value="In Transit">In Transit</SelectItem>
                     <SelectItem value="Pending">Pending</SelectItem>
                     <SelectItem value="Delivered">Delivered</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
                 <Textarea

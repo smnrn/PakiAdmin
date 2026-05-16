@@ -444,7 +444,7 @@ export default function DashboardPage() {
                           <button
                             type="button"
                             onClick={() => setIsRangeMenuOpen(false)}
-                            className="mt-1 inline-flex items-center justify-center rounded-xl bg-[#39B5A8] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#2F9D91]"
+                            className="mt-0.5 inline-flex h-10 items-center justify-center rounded-xl bg-[#39B5A8] px-3 text-xs font-bold text-white transition-colors hover:bg-[#2F9D91]"
                           >
                             Apply Custom Range
                           </button>
