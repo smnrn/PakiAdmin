@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   BadgeCheck,
@@ -45,6 +45,8 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '../ui/input-otp';
 import { Separator } from '../ui/separator';
 import { Switch } from '../ui/switch';
 import { cn } from '../ui/utils';
+import { useAuth } from '../../contexts/AuthContext';
+import { getTwoFactorStorageKey } from '../../lib/twoFactor';
 
 type TwoFactorPlatform = 'pakiadmin' | 'pakiship' | 'pakipark';
 
@@ -415,6 +417,7 @@ function QrPreview({ seed, theme }: { seed: string; theme: TwoFactorTheme }) {
 
 export function TwoFactorAuthPanel({ platform = 'pakiadmin' }: TwoFactorAuthPanelProps) {
   const theme = THEMES[platform];
+  const { user } = useAuth();
 
   const [isEnabled, setIsEnabled] = useState(false);
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -437,6 +440,15 @@ export function TwoFactorAuthPanel({ platform = 'pakiadmin' }: TwoFactorAuthPane
   const currentSession = sessions.find((session) => session.isCurrent);
   const otherSessions = sessions.filter((session) => !session.isCurrent);
   const suspiciousCount = otherSessions.filter((session) => session.isSuspicious).length;
+  const twoFactorStorageKey = user?.email ? getTwoFactorStorageKey(platform, user.email) : null;
+
+  useEffect(() => {
+    if (!twoFactorStorageKey) {
+      return;
+    }
+
+    setIsEnabled(window.localStorage.getItem(twoFactorStorageKey) === 'enabled');
+  }, [twoFactorStorageKey]);
 
   const copyText = async (value: string, successMessage: string) => {
     try {
@@ -494,6 +506,9 @@ export function TwoFactorAuthPanel({ platform = 'pakiadmin' }: TwoFactorAuthPane
     window.setTimeout(() => {
       setIsVerifying(false);
       setIsEnabled(true);
+      if (twoFactorStorageKey) {
+        window.localStorage.setItem(twoFactorStorageKey, 'enabled');
+      }
       setShowSuccessState(true);
       setLastUpdated(formatDate(new Date()));
       toast.success('Two-factor authentication enabled.', {
@@ -504,6 +519,9 @@ export function TwoFactorAuthPanel({ platform = 'pakiadmin' }: TwoFactorAuthPane
 
   const handleDisable2FA = () => {
     setIsEnabled(false);
+    if (twoFactorStorageKey) {
+      window.localStorage.removeItem(twoFactorStorageKey);
+    }
     setIsDisableDialogOpen(false);
     setVerificationCode('');
     setShowSuccessState(false);

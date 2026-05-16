@@ -25,6 +25,7 @@ import { Input } from '../../components/ui/input';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 function readStoredValue(key: string, fallback: string) {
   if (typeof window === 'undefined') {
@@ -36,8 +37,10 @@ function readStoredValue(key: string, fallback: string) {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sampleDisplayName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
+  const sampleEmail = user?.email || 'juandelacruz@pakiadmin.com';
 
   // --- STATE MANAGEMENT ---
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -55,8 +58,8 @@ export default function ProfilePage() {
 
   const [formData, setFormData] = useState({
     adminId: readStoredValue('pakiship_adminId', 'ADM-2026-1001'),
-    name: readStoredValue('pakiship_name', 'Juan Dela Cruz'),
-    email: readStoredValue('pakiship_email', 'juandelacruz@pakiadmin.com'),
+    name: getDisplayNameForEmail(user?.email, readStoredValue('pakiship_name', sampleDisplayName)),
+    email: user?.email || readStoredValue('pakiship_email', sampleEmail),
     phone: readStoredValue('pakiship_phone', '09123456789'),
     address: readStoredValue('pakiship_address', 'Espana Blvd., Sampaloc, Manila'),
     dob: readStoredValue('pakiship_dob', '2005-06-01'),
@@ -82,7 +85,7 @@ export default function ProfilePage() {
   const isPasswordValid = passwordErrors.length && passwordErrors.number && passwordErrors.symbol;
 
   const adminDetails = [
-    { label: 'System Role', value: 'Super Admin', icon: <ShieldCheck className="w-4 h-4" /> },
+    { label: 'System Role', value: 'Admin', icon: <ShieldCheck className="w-4 h-4" /> },
     { label: 'Last Login', value: 'Today, 08:42 AM', icon: <RefreshCw className="w-4 h-4" /> },
   ];
 

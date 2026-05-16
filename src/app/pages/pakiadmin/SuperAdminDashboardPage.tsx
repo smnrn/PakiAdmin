@@ -12,15 +12,21 @@ import {
   Mail,
   Calendar,
   UserCog,
-  Shield,
   AlertTriangle,
+  BarChart3,
+  CalendarDays,
   Eye,
   Filter,
   Download,
+  DollarSign,
+  PackageCheck,
+  TrendingUp,
   X,
 } from "lucide-react";
 
 import { pakiAdminLogo } from '../../lib/assets';
+import { useAuth } from "../../contexts/AuthContext";
+import { getDisplayNameForEmail } from "../../lib/sampleAccounts";
 
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
@@ -95,17 +101,23 @@ const MOCK_REQUESTS: AdminRequest[] = [
 
 export default function SuperAdminDashboardPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [requests, setRequests] = useState<AdminRequest[]>(MOCK_REQUESTS);
   const [selectedRequest, setSelectedRequest] = useState<AdminRequest | null>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isDashboardMenuOpen, setIsDashboardMenuOpen] = useState(false);
+  const [activeDashboardTab, setActiveDashboardTab] = useState('Overview');
+  const [selectedRange, setSelectedRange] = useState('7 Days');
+  const [customStartDate, setCustomStartDate] = useState('2026-05-01');
+  const [customEndDate, setCustomEndDate] = useState('2026-05-15');
+  const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const placeholderName = "Super Admin";
+  const placeholderName = getDisplayNameForEmail(user?.email, "Super Admin");
 
   const handleLogout = () => {
     navigate('/pakiadmin/login');
@@ -123,6 +135,373 @@ export default function SuperAdminDashboardPage() {
   const pendingCount = requests.filter(r => r.status === 'pending').length;
   const approvedCount = requests.filter(r => r.status === 'approved').length;
   const rejectedCount = requests.filter(r => r.status === 'rejected').length;
+  const platformMetrics = [
+    {
+      icon: <DollarSign className="w-5 h-5" />,
+      label: 'Platform Revenue',
+      value: 'PHP 1.83M',
+      detail: '+14.2% vs last month',
+      tone: 'bg-gradient-to-br from-[#300066]/12 to-[#6a16b8]/18 text-[#300066] border-[#300066]/20',
+    },
+    {
+      icon: <PackageCheck className="w-5 h-5" />,
+      label: 'Total Active Users',
+      value: '12,840',
+      detail: '+8.7% across all products',
+      tone: 'bg-gradient-to-br from-[#300066]/10 to-[#4b008f]/18 text-[#300066] border-[#300066]/20',
+    },
+    {
+      icon: <TrendingUp className="w-5 h-5" />,
+      label: 'API Uptime (30D)',
+      value: '99.6%',
+      detail: 'On track this month',
+      tone: 'bg-gradient-to-br from-[#f5ebff] to-[#300066]/16 text-[#300066] border-[#300066]/20',
+    },
+    {
+      icon: <AlertTriangle className="w-5 h-5" />,
+      label: 'Incidents (MTD)',
+      value: '2',
+      detail: '1 unresolved incident',
+      tone: 'bg-gradient-to-br from-[#300066]/12 to-[#8a38d4]/18 text-[#300066] border-[#300066]/20',
+    },
+  ];
+  const auditLogs = [
+    { action: '2FA policy checked', actor: placeholderName, time: '6 mins ago' },
+    { action: 'Admin request queue reviewed', actor: placeholderName, time: '18 mins ago' },
+    { action: 'Revenue report exported', actor: 'System Monitor', time: '42 mins ago' },
+  ];
+  const productRevenue = [
+    { product: 'PakiShip', amount: 'PHP 1,120,000', share: '61%', detail: '9,210 shipments', width: '61%', tone: 'from-[#300066] to-[#6a16b8]' },
+    { product: 'PakiPark', amount: 'PHP 710,000', share: '39%', detail: '4,380 sessions', width: '39%', tone: 'from-[#6a16b8] to-[#b184df]' },
+  ];
+  const systemHealth = [
+    { service: 'PakiShip API', latency: '84ms', status: 'Healthy', tone: 'bg-[#300066]' },
+    { service: 'PakiPark API', latency: '112ms', status: 'Healthy', tone: 'bg-[#4b008f]' },
+    { service: 'Auth / 2FA Service', latency: '67ms', status: 'Healthy', tone: 'bg-[#300066]' },
+    { service: 'Payment Gateway', latency: '340ms', status: 'Degraded', tone: 'bg-[#b184df]' },
+    { service: 'Database (primary)', latency: '18ms', status: 'Healthy', tone: 'bg-[#300066]' },
+    { service: 'Notification Service', latency: '55ms', status: 'Healthy', tone: 'bg-[#4b008f]' },
+  ];
+  const recentApiLogs = [
+    { time: '10:41:52', method: 'POST', endpoint: '/pakiship/v1/quotes', code: '200' },
+    { time: '10:41:49', method: 'GET', endpoint: '/pakipark/v1/lots/QC-04', code: '200' },
+    { time: '10:41:33', method: 'POST', endpoint: '/auth/v1/verify-otp', code: '200' },
+    { time: '10:40:17', method: 'GET', endpoint: '/pakiship/v1/tracking/SH8821', code: '404' },
+    { time: '10:39:58', method: 'POST', endpoint: '/pakipark/v1/payments', code: '503' },
+    { time: '10:38:04', method: 'DEL', endpoint: '/admin/v1/users/USR-0042', code: '204' },
+  ];
+  const adminAccounts = [
+    { initials: 'EA', name: 'Euch A.', email: 'euch@pakiapps.ph', role: 'Superadmin' },
+    { initials: 'JR', name: 'Juan R.', email: 'juan@pakiapps.ph', role: 'PakiShip Admin' },
+    { initials: 'ML', name: 'Maria L.', email: 'maria@pakiapps.ph', role: 'PakiPark Admin' },
+  ];
+  const permissionRows = [
+    { feature: 'Revenue', pakiship: 'Own only', pakipark: 'Own only' },
+    { feature: 'API Logs', pakiship: 'X', pakipark: 'X' },
+    { feature: 'Sys Health', pakiship: 'X', pakipark: 'X' },
+    { feature: 'User Mgmt', pakiship: 'X', pakipark: 'X' },
+  ];
+  const dashboardTabs = ['Overview', 'API Logs', 'System Health', 'Users & Roles', 'Audit Trail', 'Settings'];
+  const dashboardTabInfo: Record<string, { title: string; description: string; stats: string[] }> = {
+    Overview: {
+      title: 'Operations overview',
+      description: 'Month-to-date revenue, users, uptime, and incident signals across PakiShip and PakiPark.',
+      stats: ['PHP 1.83M revenue', '99.6% API uptime', '2 incidents tracked'],
+    },
+    'API Logs': {
+      title: 'API activity monitor',
+      description: 'Latest gateway traffic, endpoint responses, and failure codes from shared platform services.',
+      stats: ['6 recent events', '2 attention codes', 'Auth, park, and ship routes'],
+    },
+    'System Health': {
+      title: 'System health center',
+      description: 'Live service status, latency readings, degraded dependencies, and recovery watch points.',
+      stats: ['5 healthy services', '1 degraded gateway', '18ms database latency'],
+    },
+    'Users & Roles': {
+      title: 'Users and roles',
+      description: 'Administrator account visibility with product-level permissions and superadmin access boundaries.',
+      stats: ['3 admin profiles', '2 product admins', 'Full superadmin access'],
+    },
+    'Audit Trail': {
+      title: 'Audit readiness',
+      description: 'Security-relevant actions, exports, account changes, and review activity for compliance checks.',
+      stats: ['2FA activity', 'Request reviews', 'Report exports'],
+    },
+    Settings: {
+      title: 'Platform settings',
+      description: 'Central controls for notification rules, access policy, data retention, and operational defaults.',
+      stats: ['Access policy', 'Alert routing', 'Data retention'],
+    },
+  };
+  const filterOptions = ['Today', '7 Days', '30 Days', 'Custom Range'];
+  const activeTabInfo = dashboardTabInfo[activeDashboardTab];
+  const formatDateLabel = (date: string) => {
+    if (!date) return '';
+    const [year, month, day] = date.split('-').map(Number);
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(year, month - 1, day));
+  };
+  const customRangeLabel = `${formatDateLabel(customStartDate)} - ${formatDateLabel(customEndDate)}`;
+  const handleRangeOptionClick = (option: string) => {
+    if (option === 'Custom Range') {
+      setIsCustomRangeOpen(true);
+      return;
+    }
+
+    setSelectedRange(option);
+    setIsCustomRangeOpen(false);
+    setIsDashboardMenuOpen(false);
+  };
+  const applyCustomRange = () => {
+    if (!customStartDate || !customEndDate) return;
+
+    setSelectedRange(customRangeLabel);
+    setIsCustomRangeOpen(false);
+    setIsDashboardMenuOpen(false);
+  };
+  const renderDashboardContent = () => {
+    if (activeDashboardTab === 'API Logs') {
+      return (
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_0.8fr]">
+          <div className="rounded-[2rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-7 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-xl font-black uppercase tracking-[0.12em] text-[#300066]/75">API Request Stream</h2>
+              <span className="rounded-full bg-gradient-to-r from-[#f7efff] to-[#e8d2ff] px-4 py-2 text-xs font-black text-[#300066]">
+                {selectedRange}
+              </span>
+            </div>
+            <div className="mt-6 divide-y divide-[#300066]/10">
+              {recentApiLogs.map((log) => (
+                <div key={`${log.time}-${log.endpoint}`} className="grid grid-cols-[86px_72px_1fr_auto] items-center gap-3 py-4">
+                  <span className="font-mono text-sm font-bold text-[#300066]/55">{log.time}</span>
+                  <span className="rounded-lg bg-white px-2.5 py-1 text-center text-xs font-black text-[#300066] shadow-sm">
+                    {log.method}
+                  </span>
+                  <span className="truncate font-mono text-sm font-bold text-[#2c0735]/75">{log.endpoint}</span>
+                  <span className={`font-black ${log.code.startsWith('5') || log.code.startsWith('4') ? 'text-[#7b2cbf]' : 'text-[#300066]'}`}>
+                    {log.code}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {[
+              { label: 'Successful Calls', value: '18,420', detail: '97.8% success rate' },
+              { label: 'Failed Calls', value: '412', detail: '404 and 503 responses' },
+              { label: 'Avg Response', value: '116ms', detail: 'Across all gateways' },
+            ].map((item) => (
+              <article key={item.label} className="rounded-[1.5rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-6 shadow-sm">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#300066]/55">{item.label}</p>
+                <p className="mt-2 text-3xl font-black text-[#300066]">{item.value}</p>
+                <p className="mt-2 text-sm font-bold text-[#300066]/65">{item.detail}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    if (activeDashboardTab === 'System Health') {
+      return (
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-[2rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-7 shadow-sm">
+            <h2 className="text-xl font-black uppercase tracking-[0.12em] text-[#300066]/75">Live Service Health</h2>
+            <div className="mt-6 divide-y divide-[#300066]/10">
+              {systemHealth.map((service) => (
+                <div key={service.service} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className={`h-3 w-3 rounded-full ${service.tone}`}></span>
+                    <span className="font-black text-[#2c0735]">{service.service}</span>
+                  </div>
+                  <span className="text-sm font-black text-[#300066]">{service.latency}</span>
+                  <span className="text-sm font-bold text-[#300066]/65">{service.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-7 shadow-sm">
+            <h2 className="text-xl font-black uppercase tracking-[0.12em] text-[#300066]/75">Incident Watch</h2>
+            <div className="mt-6 space-y-4">
+              {[
+                { title: 'Payment Gateway latency', status: 'Degraded', detail: '340ms average response; watching retries.' },
+                { title: 'Tracking API queue', status: 'Stable', detail: 'No unresolved queue buildup in the last hour.' },
+                { title: 'Database primary', status: 'Healthy', detail: '18ms reads, backups completed successfully.' },
+              ].map((item) => (
+                <div key={item.title} className="rounded-2xl bg-white/75 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-black text-[#2c0735]">{item.title}</p>
+                    <span className="rounded-full bg-gradient-to-r from-[#f7efff] to-[#e8d2ff] px-3 py-1 text-xs font-black text-[#300066]">{item.status}</span>
+                  </div>
+                  <p className="mt-2 text-sm font-bold text-[#300066]/60">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeDashboardTab === 'Users & Roles') {
+      return (
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-[2rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-7 shadow-sm">
+            <h2 className="text-xl font-black uppercase tracking-[0.12em] text-[#300066]/75">Admin Accounts</h2>
+            <div className="mt-6 divide-y divide-[#300066]/10">
+              {adminAccounts.map((account) => (
+                <div key={account.email} className="flex items-center justify-between gap-4 py-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#f7efff] to-[#d9b8ff] text-sm font-black text-[#300066]">
+                      {account.initials}
+                    </div>
+                    <div>
+                      <p className="font-black text-[#2c0735]">{account.name}</p>
+                      <p className="text-sm font-bold text-[#300066]/60">{account.email}</p>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-gradient-to-r from-[#f7efff] to-[#e8d2ff] px-4 py-1.5 text-xs font-black text-[#300066]">
+                    {account.role}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-7 shadow-sm">
+            <h2 className="text-xl font-black uppercase tracking-[0.12em] text-[#300066]/75">Role Permissions</h2>
+            <div className="mt-6 grid grid-cols-3 gap-2 text-center text-sm font-bold">
+              <div className="rounded-xl bg-[#300066]/10 px-3 py-3 text-[#300066]">Feature</div>
+              <div className="rounded-xl bg-[#300066]/15 px-3 py-3 text-[#300066]">PakiShip</div>
+              <div className="rounded-xl bg-[#300066]/15 px-3 py-3 text-[#300066]">PakiPark</div>
+              {permissionRows.map((row) => (
+                <div key={row.feature} className="contents">
+                  <div className="rounded-xl bg-white/75 px-3 py-3 text-[#2c0735]">{row.feature}</div>
+                  <div className="rounded-xl bg-white/75 px-3 py-3 text-[#300066]">{row.pakiship}</div>
+                  <div className="rounded-xl bg-white/75 px-3 py-3 text-[#300066]">{row.pakipark}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-sm font-bold text-[#300066]/55">Superadmin has full access to all rows above.</p>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeDashboardTab === 'Audit Trail') {
+      return (
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-[2rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-7 shadow-sm">
+            <h2 className="text-xl font-black uppercase tracking-[0.12em] text-[#300066]/75">Audit Events</h2>
+            <div className="mt-6 space-y-4">
+              {auditLogs.concat([
+                { action: 'Permission matrix reviewed', actor: 'Compliance Monitor', time: '1 hr ago' },
+                { action: 'Failed API burst flagged', actor: 'System Monitor', time: '2 hrs ago' },
+              ]).map((log) => (
+                <div key={`${log.action}-${log.time}`} className="flex items-center justify-between rounded-2xl bg-white/75 px-5 py-4">
+                  <div>
+                    <p className="font-black text-[#2c0735]">{log.action}</p>
+                    <p className="text-sm font-bold text-[#300066]/55">{log.actor}</p>
+                  </div>
+                  <span className="text-sm font-black text-[#300066]/65">{log.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-7 shadow-sm">
+            <h2 className="text-xl font-black uppercase tracking-[0.12em] text-[#300066]/75">Review Summary</h2>
+            <div className="mt-6 space-y-4">
+              <SummaryCard icon={<Clock className="w-6 h-6" />} label="Pending Review" value={pendingCount} color="amber" />
+              <SummaryCard icon={<CheckCircle className="w-6 h-6" />} label="Approved" value={approvedCount} color="green" />
+              <SummaryCard icon={<XCircle className="w-6 h-6" />} label="Rejected" value={rejectedCount} color="red" />
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeDashboardTab === 'Settings') {
+      return (
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          {[
+            { title: 'Access Policy', value: '2FA required', detail: 'Superadmin approval required for new admin accounts.' },
+            { title: 'Alert Routing', value: 'Ops + Admin', detail: 'Critical incidents notify platform leads and product admins.' },
+            { title: 'Data Retention', value: '180 days', detail: 'API logs and audit events are retained for review windows.' },
+            { title: 'Export Controls', value: 'Enabled', detail: 'Revenue and audit exports require authenticated sessions.' },
+            { title: 'Maintenance Mode', value: 'Off', detail: 'PakiShip and PakiPark remain operational.' },
+            { title: 'Default Range', value: selectedRange, detail: 'Dashboard cards follow the selected date filter.' },
+          ].map((setting) => (
+            <article key={setting.title} className="rounded-[1.5rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-6 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#300066]/55">{setting.title}</p>
+              <p className="mt-2 text-2xl font-black text-[#300066]">{setting.value}</p>
+              <p className="mt-3 text-sm font-bold leading-6 text-[#300066]/65">{setting.detail}</p>
+            </article>
+          ))}
+        </section>
+      );
+    }
+
+    return (
+      <>
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {platformMetrics.map((metric) => (
+            <article key={metric.label} className="rounded-[1.5rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-6 shadow-sm">
+              <div className={`mb-5 inline-flex rounded-2xl border p-3 ${metric.tone}`}>{metric.icon}</div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#300066]/55">{metric.label}</p>
+              <p className="mt-2 text-4xl font-black text-[#300066]">{metric.value}</p>
+              <p className="mt-3 text-sm font-bold text-[#300066]/70">{metric.detail}</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <div className="rounded-[2rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-7 shadow-sm">
+            <h2 className="text-xl font-black uppercase tracking-[0.12em] text-[#300066]/75">Revenue by Product</h2>
+            <div className="mt-7 space-y-7">
+              {productRevenue.map((item) => (
+                <div key={item.product}>
+                  <div className="mb-3 flex items-center justify-between gap-4">
+                    <span className="rounded-full bg-gradient-to-r from-[#f7efff] to-[#e8d2ff] px-4 py-1.5 text-sm font-black text-[#300066]">
+                      {item.product}
+                    </span>
+                    <span className="text-lg font-black text-[#300066]">{item.amount}</span>
+                  </div>
+                  <div className="h-4 overflow-hidden rounded-full bg-[#300066]/10">
+                    <div className={`h-full rounded-full bg-gradient-to-r ${item.tone}`} style={{ width: item.width }} />
+                  </div>
+                  <p className="mt-2 text-sm font-bold text-[#300066]/60">
+                    {item.share} of total · {item.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 flex items-center justify-between border-t border-[#300066]/15 pt-5 text-base font-black text-[#300066]">
+              <span>May 2026 · Month-to-date</span>
+              <span>PHP 1,830,000 total</span>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-7 shadow-sm">
+            <h2 className="text-xl font-black uppercase tracking-[0.12em] text-[#300066]/75">System Health</h2>
+            <div className="mt-6 divide-y divide-[#300066]/10">
+              {systemHealth.map((service) => (
+                <div key={service.service} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className={`h-3 w-3 rounded-full ${service.tone}`}></span>
+                    <span className="font-black text-[#2c0735]">{service.service}</span>
+                  </div>
+                  <span className="text-sm font-black text-[#300066]">{service.latency}</span>
+                  <span className="text-sm font-bold text-[#300066]/65">{service.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </>
+    );
+  };
 
   const handleApprove = (request: AdminRequest) => {
     setIsProcessing(true);
@@ -184,18 +563,20 @@ export default function SuperAdminDashboardPage() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F0F9F8] font-sans text-[#1A5D56]">
+    <div className="flex h-screen bg-[radial-gradient(circle_at_top_left,#fbf7ff_0%,#efe0ff_38%,#ddc2ff_100%)] font-sans text-[#300066]">
       <style dangerouslySetInnerHTML={{ __html: `
         ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #F0F9F8; }
-        ::-webkit-scrollbar-thumb { background: #39B5A833; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #39B5A866; }
+        ::-webkit-scrollbar-track { background: #efe0ff; }
+        ::-webkit-scrollbar-thumb { background: #30006688; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #300066cc; }
       `}} />
 
       {/* Sidebar */}
-      <div className="w-72 bg-white border-r border-[#dec0f1]/30 flex flex-col shadow-xl">
-        <div className="p-8">
-          <img src={pakiAdminLogo} alt="PakiAdmin Logo" className="h-12 w-auto object-contain mx-auto" />
+      <div className="w-72 bg-gradient-to-b from-white via-[#f4e9ff] to-[#e8d2ff] border-r border-[#300066]/15 flex flex-col shadow-xl">
+        <div className="px-8 py-6">
+          <div className="mx-auto flex h-28 w-44 items-center justify-center overflow-hidden">
+            <img src={pakiAdminLogo} alt="PakiAdmin Logo" className="h-40 w-40 max-w-none object-contain" />
+          </div>
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
@@ -208,28 +589,27 @@ export default function SuperAdminDashboardPage() {
           <NavButton
             active={true}
             onClick={() => {}}
-            icon={<Shield className="w-5 h-5" />}
-            label="Pending Requests"
-            badge={pendingCount > 0 ? pendingCount.toString() : undefined}
+            icon={<BarChart3 className="w-5 h-5" />}
+            label="Platform Overview"
           />
           <NavButton
             active={false}
-            onClick={() => navigate('/pakiadmin/dashboard')}
+            onClick={() => navigate('/pakiship/dashboard')}
             icon={<User className="w-5 h-5" />}
-            label="User Management"
+            label="Operational Dashboard"
           />
           <NavButton
             active={false}
             onClick={() => navigate('/pakiadmin/settings')}
             icon={<Settings className="w-5 h-5" />}
-            label="Admin Settings"
+            label="Admin Accounts"
           />
         </nav>
 
-        <div className="p-6 border-t border-[#dec0f1]/30">
+        <div className="p-6 border-t border-[#300066]/15">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all font-semibold text-sm group"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#300066] hover:bg-[#300066]/10 transition-all font-semibold text-sm group"
           >
             <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             Sign Out
@@ -240,13 +620,13 @@ export default function SuperAdminDashboardPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-[#dec0f1]/30 px-10 flex items-center justify-between sticky top-0 z-10">
+        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-[#300066]/15 px-10 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-4 bg-[#F0F9F8] px-4 py-2 rounded-xl border border-[#dec0f1]/30 w-96">
+            <div className="flex items-center gap-4 bg-gradient-to-r from-white to-[#efe0ff] px-4 py-2 rounded-xl border border-[#300066]/15 w-96">
               <Search className="w-4 h-4 text-[#2c0735]/60" />
               <input
                 type="text"
-                placeholder="Search requests by name, email, or ID..."
+                placeholder="Search systems, users, API logs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-transparent border-none outline-none text-sm w-full placeholder:text-[#2c0735]/40 font-medium"
@@ -255,13 +635,13 @@ export default function SuperAdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-6">
-            <div className="h-8 w-[1px] bg-[#dec0f1]/30"></div>
+            <div className="h-8 w-[1px] bg-[#300066]/15"></div>
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-3 hover:bg-[#F0F9F8] px-3 py-2 rounded-xl transition-all"
+                className="flex items-center gap-3 hover:bg-[#300066]/10 px-3 py-2 rounded-xl transition-all"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-[#2c0735] to-[#543569] rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#300066] via-[#4b008f] to-[#6a16b8] rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
                   {placeholderName.charAt(0).toUpperCase()}
                 </div>
                 <div className="text-left hidden md:block min-w-max">
@@ -272,19 +652,19 @@ export default function SuperAdminDashboardPage() {
               </button>
 
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#dec0f1]/30 overflow-hidden z-20">
-                  <button onClick={() => { setIsUserMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F9F8] transition-colors text-left">
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#300066]/15 overflow-hidden z-20">
+                  <button onClick={() => { setIsUserMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#300066]/10 transition-colors text-left">
                     <User className="w-4 h-4 text-[#2c0735]" />
                     <span className="font-semibold text-[#2c0735]">Profile</span>
                   </button>
-                  <button onClick={() => { setIsUserMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F9F8] transition-colors text-left">
+                  <button onClick={() => { setIsUserMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#300066]/10 transition-colors text-left">
                     <Settings className="w-4 h-4 text-[#2c0735]" />
                     <span className="font-semibold text-[#2c0735]">Settings</span>
                   </button>
-                  <div className="border-t border-[#dec0f1]/30"></div>
-                  <button onClick={() => { setIsUserMenuOpen(false); handleLogout(); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-red-50 transition-colors text-left">
-                    <LogOut className="w-4 h-4 text-red-500" />
-                    <span className="font-semibold text-red-500">Logout</span>
+                  <div className="border-t border-[#300066]/15"></div>
+                  <button onClick={() => { setIsUserMenuOpen(false); handleLogout(); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#300066]/10 transition-colors text-left">
+                    <LogOut className="w-4 h-4 text-[#300066]" />
+                    <span className="font-semibold text-[#300066]">Logout</span>
                   </button>
                 </div>
               )}
@@ -293,142 +673,132 @@ export default function SuperAdminDashboardPage() {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-10 space-y-8">
-          <section>
-            <h1 className="text-3xl font-bold text-[#2c0735] tracking-tight">Admin Access Requests</h1>
-            <p className="text-[#2c0735]/60 font-medium italic">Review and manage pending administrator signup requests.</p>
+        <main className="flex-1 overflow-y-auto p-10 space-y-7">
+          <section className="overflow-hidden rounded-[2rem] border border-[#300066]/20 bg-gradient-to-r from-[#300066] via-[#4b008f] to-[#1d003e] text-white shadow-xl shadow-[#300066]/25">
+            <div className="flex flex-col gap-5 px-8 py-7 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl font-black tracking-tight">pakiApps Superadmin</h1>
+                  <span className="rounded-full bg-white/15 px-4 py-1 text-xs font-black uppercase tracking-[0.16em] text-white">
+                    Superadmin
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 text-sm font-bold text-white/80 sm:flex-row sm:items-center sm:gap-8 lg:text-right">
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-[#b184df] shadow-[0_0_18px_rgba(177,132,223,0.9)]"></span>
+                  All systems operational
+                </span>
+                <span>May 16, 2026 · 10:42 PHT</span>
+              </div>
+            </div>
+            <div className="flex overflow-x-auto border-t border-white/10 px-8">
+              {dashboardTabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveDashboardTab(tab)}
+                  className={`min-w-max px-6 py-4 text-sm font-black transition-colors ${
+                    activeDashboardTab === tab
+                      ? 'border-b-4 border-white bg-white/10 text-white'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
           </section>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <SummaryCard
-              icon={<Clock className="w-6 h-6" />}
-              label="Pending Review"
-              value={pendingCount}
-              color="amber"
-            />
-            <SummaryCard
-              icon={<CheckCircle className="w-6 h-6" />}
-              label="Approved"
-              value={approvedCount}
-              color="green"
-            />
-            <SummaryCard
-              icon={<XCircle className="w-6 h-6" />}
-              label="Rejected"
-              value={rejectedCount}
-              color="red"
-            />
-          </div>
+          <section className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex-1 rounded-[1.5rem] border border-[#300066]/15 bg-gradient-to-br from-white to-[#f1e3ff] p-5 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#300066]/55">
+                {activeDashboardTab}
+              </p>
+              <h2 className="mt-1 text-2xl font-black text-[#300066]">{activeTabInfo.title}</h2>
+              <p className="mt-2 max-w-4xl text-sm font-bold leading-6 text-[#300066]/65">{activeTabInfo.description}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {activeTabInfo.stats.map((stat) => (
+                  <span key={stat} className="rounded-full bg-gradient-to-r from-[#f7efff] to-[#e8d2ff] px-4 py-2 text-xs font-black text-[#300066]">
+                    {stat}
+                  </span>
+                ))}
+              </div>
+            </div>
 
-          {/* Filters */}
-          <div className="bg-white p-6 rounded-[2rem] border border-[#dec0f1]/30 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-[#2c0735]">Filter Requests</h2>
-              <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#dec0f1]/30 hover:bg-[#F0F9F8] transition-colors text-sm font-semibold text-[#2c0735]">
-                <Download className="w-4 h-4" />
-                Export
+            <div className="relative w-full lg:w-80">
+              <button
+                onClick={() => {
+                  setIsDashboardMenuOpen(!isDashboardMenuOpen);
+                  if (!isDashboardMenuOpen && selectedRange.includes(' - ')) {
+                    setIsCustomRangeOpen(true);
+                  }
+                }}
+                className="flex w-full items-center justify-between rounded-[1.25rem] border border-[#300066]/20 bg-white/95 px-5 py-4 text-[#2c0735] shadow-sm transition-all hover:bg-[#f7efff]"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="rounded-full bg-gradient-to-br from-[#f7efff] to-[#e8d2ff] p-2">
+                    <CalendarDays className="h-4 w-4 text-[#6a16b8]" />
+                  </span>
+                  <span className="font-black">{selectedRange}</span>
+                </span>
+                <Filter className="h-4 w-4 text-[#6a16b8]" />
               </button>
-            </div>
 
-            <div className="flex gap-2">
-              <FilterButton
-                active={statusFilter === 'all'}
-                onClick={() => setStatusFilter('all')}
-                label="All"
-                count={requests.length}
-              />
-              <FilterButton
-                active={statusFilter === 'pending'}
-                onClick={() => setStatusFilter('pending')}
-                label="Pending"
-                count={pendingCount}
-                color="amber"
-              />
-              <FilterButton
-                active={statusFilter === 'approved'}
-                onClick={() => setStatusFilter('approved')}
-                label="Approved"
-                count={approvedCount}
-                color="green"
-              />
-              <FilterButton
-                active={statusFilter === 'rejected'}
-                onClick={() => setStatusFilter('rejected')}
-                label="Rejected"
-                count={rejectedCount}
-                color="red"
-              />
-            </div>
-          </div>
-
-          {/* Requests Table */}
-          <div className="bg-white rounded-[2rem] border border-[#dec0f1]/30 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-[#F0F9F8] border-b border-[#dec0f1]/30">
-                  <tr>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#2c0735] uppercase tracking-widest">Request ID</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#2c0735] uppercase tracking-widest">Applicant</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#2c0735] uppercase tracking-widest">Role</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#2c0735] uppercase tracking-widest">Applied On</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#2c0735] uppercase tracking-widest">Status</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#2c0735] uppercase tracking-widest text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#dec0f1]/30">
-                  {filteredRequests.map((request) => (
-                    <tr key={request.id} className="hover:bg-[#F0F9F8]/50 transition-colors">
-                      <td className="px-6 py-5">
-                        <p className="font-bold text-[#2c0735] text-sm">{request.id}</p>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-[#2c0735] to-[#543569] rounded-xl flex items-center justify-center text-white font-bold text-sm">
-                            {request.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-bold text-[#2c0735]">{request.name}</p>
-                            <p className="text-xs text-[#2c0735]/60 font-medium flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              {request.email}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#dec0f1]/30 text-[#2c0735] rounded-full font-bold text-xs">
-                          <UserCog className="w-3.5 h-3.5" />
-                          {request.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5">
-                        <p className="text-sm font-semibold text-[#2c0735]">{new Date(request.applicationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                      </td>
-                      <td className="px-6 py-5">
-                        <StatusBadge status={request.status} emailVerified={request.emailVerified} />
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <button
-                          onClick={() => setSelectedRequest(request)}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#2c0735] text-white rounded-xl hover:shadow-lg hover:shadow-[#2c0735]/20 transition-all text-xs font-bold uppercase tracking-wider"
-                        >
-                          <Eye className="w-4 h-4" />
-                          Review
-                        </button>
-                      </td>
-                    </tr>
+              {isDashboardMenuOpen && (
+                <div className="absolute right-0 z-20 mt-4 w-full overflow-hidden rounded-[1.75rem] border border-[#300066]/15 bg-white shadow-2xl shadow-[#300066]/20">
+                  {filterOptions.map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => handleRangeOptionClick(option)}
+                      className={`mx-4 mt-3 w-[calc(100%-2rem)] rounded-2xl px-4 py-3 text-left text-sm font-black transition-colors first:mt-5 last:mb-4 ${
+                        selectedRange === option || (option === 'Custom Range' && (isCustomRangeOpen || selectedRange.includes(' - ')))
+                          ? 'bg-gradient-to-r from-[#300066] to-[#5b0aa0] text-white shadow-sm'
+                          : 'text-[#300066] hover:bg-[#300066]/10'
+                      }`}
+                    >
+                      {option}
+                    </button>
                   ))}
-                </tbody>
-              </table>
 
-              {filteredRequests.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-[#2c0735]/40 font-semibold">No requests found</p>
+                  {isCustomRangeOpen && (
+                    <div className="border-t border-[#300066]/15 bg-gradient-to-br from-[#fbf7ff] to-[#efe0ff] px-5 py-5">
+                      <label className="block text-xs font-black uppercase tracking-[0.14em] text-[#6a16b8]">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        className="mt-2 h-11 w-full rounded-2xl border border-[#300066]/20 bg-white px-4 text-sm font-black text-[#2c0735] outline-none transition focus:border-[#6a16b8] focus:ring-2 focus:ring-[#6a16b8]/20"
+                      />
+
+                      <label className="mt-4 block text-xs font-black uppercase tracking-[0.14em] text-[#6a16b8]">
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={customEndDate}
+                        min={customStartDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        className="mt-2 h-11 w-full rounded-2xl border border-[#300066]/20 bg-white px-4 text-sm font-black text-[#2c0735] outline-none transition focus:border-[#6a16b8] focus:ring-2 focus:ring-[#6a16b8]/20"
+                      />
+
+                      <button
+                        onClick={applyCustomRange}
+                        disabled={!customStartDate || !customEndDate}
+                        className="mt-5 w-full rounded-2xl bg-gradient-to-r from-[#300066] to-[#5b0aa0] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:shadow-lg hover:shadow-[#300066]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Apply Custom Range
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          </div>
+          </section>
+
+          {renderDashboardContent()}
+
         </main>
       </div>
 
@@ -436,14 +806,14 @@ export default function SuperAdminDashboardPage() {
       {selectedRequest && !showRejectModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-[2.5rem] max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="sticky top-0 bg-white border-b border-[#dec0f1]/30 p-8 flex items-center justify-between rounded-t-[2.5rem] z-10">
+            <div className="sticky top-0 bg-white border-b border-[#300066]/15 p-8 flex items-center justify-between rounded-t-[2.5rem] z-10">
               <div>
                 <h2 className="text-2xl font-bold text-[#2c0735]">Review Request</h2>
                 <p className="text-sm text-[#2c0735]/60 font-medium">{selectedRequest.id}</p>
               </div>
               <button
                 onClick={() => setSelectedRequest(null)}
-                className="p-2 rounded-xl hover:bg-[#F0F9F8] transition-colors"
+                className="p-2 rounded-xl hover:bg-[#300066]/10 transition-colors"
               >
                 <X className="w-6 h-6 text-[#2c0735]" />
               </button>
@@ -462,18 +832,18 @@ export default function SuperAdminDashboardPage() {
               </section>
 
               {/* Email Verification Status */}
-              <section className={`p-4 rounded-xl border ${selectedRequest.emailVerified ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+              <section className={`p-4 rounded-xl border ${selectedRequest.emailVerified ? 'bg-gradient-to-r from-[#f7efff] to-[#e8d2ff] border-[#300066]/20' : 'bg-gradient-to-r from-[#fbf7ff] to-[#efe0ff] border-[#300066]/15'}`}>
                 <div className="flex items-center gap-3">
                   {selectedRequest.emailVerified ? (
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <CheckCircle className="w-5 h-5 text-[#300066]" />
                   ) : (
-                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                    <AlertTriangle className="w-5 h-5 text-[#4b008f]" />
                   )}
                   <div>
-                    <p className={`font-bold text-sm ${selectedRequest.emailVerified ? 'text-green-900' : 'text-amber-900'}`}>
+                    <p className={`font-bold text-sm ${selectedRequest.emailVerified ? 'text-[#4c1d95]' : 'text-[#581c87]'}`}>
                       Email {selectedRequest.emailVerified ? 'Verified' : 'Not Verified'}
                     </p>
-                    <p className={`text-xs font-semibold ${selectedRequest.emailVerified ? 'text-green-700' : 'text-amber-700'}`}>
+                    <p className={`text-xs font-semibold ${selectedRequest.emailVerified ? 'text-[#300066]' : 'text-[#4b008f]'}`}>
                       {selectedRequest.emailVerified
                         ? 'Email address has been confirmed'
                         : 'User has not verified their email yet'}
@@ -484,19 +854,19 @@ export default function SuperAdminDashboardPage() {
 
               {/* Status Info */}
               {selectedRequest.status !== 'pending' && (
-                <section className="p-4 rounded-xl border border-[#dec0f1]/30 bg-[#F0F9F8]">
+                <section className="p-4 rounded-xl border border-[#300066]/15 bg-gradient-to-r from-[#f7efff] to-[#e8d2ff]">
                   <h4 className="font-bold text-[#2c0735] mb-2">Request Status</h4>
                   <div className="space-y-2">
                     {selectedRequest.status === 'approved' && (
                       <>
-                        <p className="text-sm font-semibold text-green-600">✓ Approved</p>
+                        <p className="text-sm font-semibold text-[#300066]">✓ Approved</p>
                         <p className="text-xs font-semibold text-[#2c0735]/60">Approved by: {selectedRequest.approvedBy}</p>
                         <p className="text-xs font-semibold text-[#2c0735]/60">Date: {selectedRequest.approvedDate}</p>
                       </>
                     )}
                     {selectedRequest.status === 'rejected' && (
                       <>
-                        <p className="text-sm font-semibold text-red-600">✗ Rejected</p>
+                        <p className="text-sm font-semibold text-[#4b008f]">✗ Rejected</p>
                         <p className="text-xs font-semibold text-[#2c0735]/60">Rejected by: {selectedRequest.rejectedBy}</p>
                         <p className="text-xs font-semibold text-[#2c0735]/60">Date: {selectedRequest.rejectedDate}</p>
                         <p className="text-xs font-bold text-[#2c0735] mt-2">Reason: {selectedRequest.rejectionReason}</p>
@@ -512,7 +882,7 @@ export default function SuperAdminDashboardPage() {
                   <button
                     onClick={() => handleApprove(selectedRequest)}
                     disabled={isProcessing || !selectedRequest.emailVerified}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#300066] to-[#5b0aa0] text-white rounded-2xl font-bold transition-all shadow-lg shadow-[#300066]/25 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CheckCircle className="w-5 h-5" />
                     {isProcessing ? 'Processing...' : 'Approve Request'}
@@ -520,7 +890,7 @@ export default function SuperAdminDashboardPage() {
                   <button
                     onClick={() => openRejectModal(selectedRequest)}
                     disabled={isProcessing}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#6a16b8] to-[#300066] text-white rounded-2xl font-bold transition-all shadow-lg shadow-[#300066]/25 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <XCircle className="w-5 h-5" />
                     Reject Request
@@ -538,8 +908,8 @@ export default function SuperAdminDashboardPage() {
           <div className="bg-white rounded-[2.5rem] max-w-md w-full shadow-2xl">
             <div className="p-8">
               <div className="flex items-start gap-4 mb-6">
-                <div className="p-3 bg-red-100 rounded-2xl">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                <div className="p-3 bg-gradient-to-br from-[#f7efff] to-[#e8d2ff] rounded-2xl">
+                  <AlertTriangle className="w-6 h-6 text-[#4b008f]" />
                 </div>
                 <div className="flex-1">
                   <h2 className="text-2xl font-bold text-[#2c0735]">Reject Request</h2>
@@ -552,7 +922,7 @@ export default function SuperAdminDashboardPage() {
                     setShowRejectModal(false);
                     setRejectionReason('');
                   }}
-                  className="p-2 rounded-xl hover:bg-[#F0F9F8] transition-colors"
+                  className="p-2 rounded-xl hover:bg-[#300066]/10 transition-colors"
                 >
                   <X className="w-5 h-5 text-[#2c0735]" />
                 </button>
@@ -568,7 +938,7 @@ export default function SuperAdminDashboardPage() {
                     onChange={(e) => setRejectionReason(e.target.value)}
                     placeholder="Explain why this request is being rejected..."
                     rows={4}
-                    className="w-full bg-[#F0F9F8] border border-[#dec0f1]/30 rounded-xl px-4 py-3 text-[#2c0735] focus:border-[#2c0735] outline-none transition-all text-sm font-medium resize-none"
+                    className="w-full bg-gradient-to-r from-[#fbf7ff] to-[#efe0ff] border border-[#300066]/15 rounded-xl px-4 py-3 text-[#2c0735] focus:border-[#300066] outline-none transition-all text-sm font-medium resize-none"
                     required
                   />
                   <p className="text-xs font-semibold text-[#2c0735]/60 mt-2">
@@ -589,7 +959,7 @@ export default function SuperAdminDashboardPage() {
                   <button
                     onClick={() => handleReject(selectedRequest)}
                     disabled={isProcessing || !rejectionReason.trim()}
-                    className="flex-1 px-6 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-[#6a16b8] to-[#300066] text-white rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isProcessing ? 'Processing...' : 'Confirm Rejection'}
                   </button>
@@ -619,16 +989,16 @@ function NavButton({ active, onClick, icon, label, badge }: NavButtonProps) {
       onClick={onClick}
       className={`w-full flex items-center justify-between px-6 py-4 rounded-[1.25rem] transition-all font-bold text-sm ${
         active
-          ? 'bg-[#dec0f1]/30 text-[#2c0735] shadow-sm'
-          : 'text-[#2c0735]/60 hover:text-[#2c0735] hover:bg-[#F0F9F8]'
+          ? 'bg-gradient-to-r from-[#300066] to-[#5b0aa0] text-white shadow-lg shadow-[#300066]/20'
+          : 'text-[#300066]/70 hover:text-[#300066] hover:bg-[#300066]/10'
       }`}
     >
       <div className="flex items-center gap-3">
-        <span className={active ? 'text-[#2c0735]' : 'text-[#2c0735]/60'}>{icon}</span>
+        <span className={active ? 'text-white' : 'text-[#300066]/65'}>{icon}</span>
         <span>{label}</span>
       </div>
       {badge && (
-        <span className="px-2 py-1 bg-amber-500 text-white rounded-full text-xs font-bold min-w-[20px] text-center">
+        <span className="px-2 py-1 bg-white/20 text-white rounded-full text-xs font-bold min-w-[20px] text-center">
           {badge}
         </span>
       )}
@@ -645,13 +1015,13 @@ interface SummaryCardProps {
 
 function SummaryCard({ icon, label, value, color }: SummaryCardProps) {
   const colors = {
-    amber: 'bg-amber-100 text-amber-600',
-    green: 'bg-green-100 text-green-600',
-    red: 'bg-red-100 text-red-600',
+    amber: 'bg-gradient-to-br from-[#f7efff] to-[#e8d2ff] text-[#300066]',
+    green: 'bg-gradient-to-br from-[#efe0ff] to-[#d9b8ff] text-[#300066]',
+    red: 'bg-gradient-to-br from-[#e8d2ff] to-[#cfa3ff] text-[#300066]',
   };
 
   return (
-    <div className="bg-white p-6 rounded-[2rem] border border-[#dec0f1]/30 shadow-sm hover:shadow-md transition-all">
+    <div className="bg-gradient-to-br from-white to-[#f1e3ff] p-6 rounded-[2rem] border border-[#300066]/15 shadow-sm hover:shadow-md transition-all">
       <div className="flex items-center justify-between mb-3">
         <div className={`p-3 rounded-2xl ${colors[color]}`}>
           {icon}
@@ -673,9 +1043,9 @@ interface FilterButtonProps {
 
 function FilterButton({ active, onClick, label, count, color }: FilterButtonProps) {
   const colors = {
-    amber: 'bg-amber-500',
-    green: 'bg-green-500',
-    red: 'bg-red-500',
+    amber: 'bg-[#6a16b8]',
+    green: 'bg-[#4b008f]',
+    red: 'bg-[#300066]',
   };
 
   return (
@@ -683,13 +1053,13 @@ function FilterButton({ active, onClick, label, count, color }: FilterButtonProp
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
         active
-          ? 'bg-[#2c0735] text-white shadow-lg shadow-[#2c0735]/20'
-          : 'bg-[#F0F9F8] text-[#2c0735] hover:bg-[#dec0f1]/30'
+          ? 'bg-gradient-to-r from-[#300066] to-[#5b0aa0] text-white shadow-lg shadow-[#300066]/25'
+          : 'bg-gradient-to-r from-[#fbf7ff] to-[#efe0ff] text-[#300066] hover:bg-[#300066]/10'
       }`}
     >
       {label}
       <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-        active ? 'bg-white/20 text-white' : `${color ? colors[color] : 'bg-[#2c0735]'} text-white`
+        active ? 'bg-white/20 text-white' : `${color ? colors[color] : 'bg-[#300066]'} text-white`
       }`}>
         {count}
       </span>
@@ -700,21 +1070,21 @@ function FilterButton({ active, onClick, label, count, color }: FilterButtonProp
 function StatusBadge({ status, emailVerified }: { status: RequestStatus; emailVerified: boolean }) {
   const statusConfig = {
     pending: {
-      bg: 'bg-amber-50',
-      text: 'text-amber-700',
-      border: 'border-amber-200',
+      bg: 'bg-[#f7efff]',
+      text: 'text-[#300066]',
+      border: 'border-[#300066]/20',
       label: 'Pending Review',
     },
     approved: {
-      bg: 'bg-green-50',
-      text: 'text-green-700',
-      border: 'border-green-200',
+      bg: 'bg-[#efe0ff]',
+      text: 'text-[#300066]',
+      border: 'border-[#300066]/20',
       label: 'Approved',
     },
     rejected: {
-      bg: 'bg-red-50',
-      text: 'text-red-700',
-      border: 'border-red-200',
+      bg: 'bg-[#e8d2ff]',
+      text: 'text-[#300066]',
+      border: 'border-[#300066]/20',
       label: 'Rejected',
     },
   };
@@ -727,7 +1097,7 @@ function StatusBadge({ status, emailVerified }: { status: RequestStatus; emailVe
         {config.label}
       </span>
       {status === 'pending' && (
-        <span className={`text-xs font-semibold ${emailVerified ? 'text-green-600' : 'text-amber-600'}`}>
+        <span className={`text-xs font-semibold ${emailVerified ? 'text-[#300066]' : 'text-[#4b008f]'}`}>
           {emailVerified ? '✓ Email Verified' : '⏱ Email Pending'}
         </span>
       )}
@@ -737,7 +1107,7 @@ function StatusBadge({ status, emailVerified }: { status: RequestStatus; emailVe
 
 function InfoItem({ icon, label, value }: any) {
   return (
-    <div className="p-4 bg-[#F0F9F8] rounded-xl">
+    <div className="p-4 bg-gradient-to-r from-[#fbf7ff] to-[#efe0ff] rounded-xl">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-[#2c0735]/60">{icon}</span>
         <span className="text-xs font-bold text-[#2c0735]/60 uppercase tracking-wider">{label}</span>

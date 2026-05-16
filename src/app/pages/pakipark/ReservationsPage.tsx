@@ -1,15 +1,8 @@
-import { useState } from 'react';
 import { useNavigate } from '../../lib/router';
 import { 
-  BarChart3, 
   MapPin, 
-  Settings, 
-  LogOut,
   Car,
-  Users,
   DollarSign,
-  Menu,
-  TrendingUp,
   Calendar,
   Clock,
   Filter,
@@ -23,17 +16,13 @@ import {
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
-import { pakiParkLogo } from '../../lib/assets';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
+import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
 
 export default function ReservationsPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('reservations');
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
+  const displayName = getDisplayNameForEmail(user?.email, user?.name || 'Administrator');
 
   const reservations = [
     { 
@@ -93,59 +82,9 @@ export default function ReservationsPage() {
     },
   ];
 
-  const navItems = [
-    { id: 'dashboard', icon: BarChart3, label: 'Dashboard', path: '/pakipark/dashboard' },
-    { id: 'reservations', icon: Car, label: 'Reservations', path: '/pakipark/reservations' },
-    { id: 'locations', icon: MapPin, label: 'Locations', path: '/pakipark/locations' },
-    { id: 'reports', icon: TrendingUp, label: 'Reports', path: '/pakipark/reports' },
-    { id: 'settings', icon: Settings, label: 'Settings', path: '/pakipark/settings' },
-  ];
-
   return (
     <div className="flex h-screen bg-[#f4f7fa] font-sans overflow-hidden">
-      {/* --- SIDEBAR --- */}
-      <div className="w-72 bg-white border-r border-[#e2e8f0] flex flex-col shadow-sm relative z-20">
-        <div className="h-24 flex items-center px-8 border-b border-[#f1f5f9]">
-          <img src={pakiParkLogo} alt="PakiPark Logo" className="h-10 object-contain" />
-        </div>
-
-        <nav className="flex-1 p-6 space-y-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  navigate(item.path);
-                }}
-                className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-bold tracking-tight transition-all group ${
-                  isActive 
-                    ? 'bg-[#1e3d5a] text-white shadow-lg shadow-blue-900/20' 
-                    : 'text-[#8492a6] hover:bg-[#f8fafc] hover:text-[#1e3d5a]'
-                }`}
-              >
-                <div className={isActive ? 'text-white' : 'group-hover:text-[#ee6b20] transition-colors'}>
-                  <Icon size={20} strokeWidth={2.5} />
-                </div>
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="p-6 border-t border-[#f1f5f9]">
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            className="w-full justify-start h-14 rounded-2xl text-red-500 hover:bg-red-50 hover:text-red-600 font-bold gap-3"
-          >
-            <LogOut className="w-5 h-5" />
-            Sign Out
-          </Button>
-        </div>
-      </div>
+      <PakiParkSidebar activeTab="reservations" />
 
       {/* --- MAIN CONTENT --- */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -169,11 +108,11 @@ export default function ReservationsPage() {
 
             <div className="flex items-center gap-3 pl-4 border-l border-[#e2e8f0]">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-[#1e3d5a] leading-none">{user?.name || 'Administrator'}</p>
+                <p className="text-sm font-bold text-[#1e3d5a] leading-none">{displayName}</p>
                 <span className="text-[10px] font-bold text-[#ee6b20] uppercase tracking-tighter">Verified Partner</span>
               </div>
               <div className="w-12 h-12 bg-gradient-to-br from-[#1e3d5a] to-[#2a5373] rounded-2xl shadow-md flex items-center justify-center text-white font-black text-lg">
-                {user?.name?.charAt(0).toUpperCase() || 'A'}
+                {displayName.charAt(0).toUpperCase()}
               </div>
             </div>
           </div>

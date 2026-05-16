@@ -1,12 +1,15 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { getAccountRoleLabel, getDisplayNameForEmail, getSampleAccountRole, type AccountRole } from '../lib/sampleAccounts';
 
 interface User {
   id: string;
   email: string;
   name: string;
   app: 'pakiship' | 'pakipark' | 'pakiadmin';
+  role?: AccountRole;
+  roleLabel?: string;
 }
 
 interface AuthContextType {
@@ -24,11 +27,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string, app: 'pakiship' | 'pakipark' | 'pakiadmin') => {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500));
+    const role = app === 'pakiadmin' ? getSampleAccountRole(email) : undefined;
+
     setUser({
       id: Math.random().toString(36).substr(2, 9),
       email,
-      name: email.split('@')[0],
+      name: getDisplayNameForEmail(email, email.split('@')[0]),
       app,
+      role,
+      roleLabel: role ? getAccountRoleLabel(role) : undefined,
     });
   };
 
@@ -38,8 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser({
       id: Math.random().toString(36).substr(2, 9),
       email,
-      name,
+      name: getDisplayNameForEmail(email, name),
       app,
+      role: app === 'pakiadmin' ? 'admin' : undefined,
+      roleLabel: app === 'pakiadmin' ? 'Admin' : undefined,
     });
   };
 

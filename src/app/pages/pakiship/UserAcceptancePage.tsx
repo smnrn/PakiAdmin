@@ -27,6 +27,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { pakiParkLogo, pakiShipLogo } from '../../lib/assets';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type ApplicantType = 'driver' | 'business';
 type AcceptanceTab = ApplicantType | 'dropoff';
@@ -45,6 +46,8 @@ interface Applicant {
   plateNumber?: string;
   businessName?: string;
   businessType?: string;
+  accountStatus?: 'inactive' | 'active';
+  activatedDate?: string;
   documents: Document[];
 }
 
@@ -189,7 +192,7 @@ const MOCK_DROPOFF_APPLICATIONS: DropOffApplication[] = [
 ];
 
 export default function UserAcceptancePage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isDashboardMenuOpen, setIsDashboardMenuOpen] = useState(false);
@@ -203,7 +206,7 @@ export default function UserAcceptancePage() {
   const [dropOffRejectionReason, setDropOffRejectionReason] = useState('');
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
 
-  const placeholderName = "Juan Dela Cruz";
+  const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
   const handleLogout = () => {
     logout();
@@ -211,7 +214,7 @@ export default function UserAcceptancePage() {
   };
 
   // Mock data
-  const applicants: Applicant[] = [
+  const [applicants, setApplicants] = useState<Applicant[]>([
     {
       id: 'DRV-001',
       name: 'Maria Santos',
@@ -221,12 +224,13 @@ export default function UserAcceptancePage() {
       applicationDate: '2026-04-25',
       documentCount: 4,
       status: 'pending',
+      accountStatus: 'inactive',
       vehicleType: 'Motorcycle',
       plateNumber: 'ABC 1234',
       documents: [
         { name: 'Driver\'s License', size: '2.3 MB', uploadDate: '2026-04-25', url: '#' },
+        { name: 'Government ID', size: '1.8 MB', uploadDate: '2026-04-25', url: '#' },
         { name: 'Vehicle Registration', size: '1.8 MB', uploadDate: '2026-04-25', url: '#' },
-        { name: 'Insurance', size: '1.2 MB', uploadDate: '2026-04-25', url: '#' },
         { name: 'NBI Clearance', size: '3.1 MB', uploadDate: '2026-04-25', url: '#' },
       ],
     },
@@ -239,12 +243,14 @@ export default function UserAcceptancePage() {
       applicationDate: '2026-04-24',
       documentCount: 4,
       status: 'approved',
+      accountStatus: 'active',
+      activatedDate: '2026-04-24',
       vehicleType: 'Van',
       plateNumber: 'XYZ 5678',
       documents: [
         { name: 'Driver\'s License', size: '2.1 MB', uploadDate: '2026-04-24', url: '#' },
+        { name: 'Government ID', size: '1.6 MB', uploadDate: '2026-04-24', url: '#' },
         { name: 'Vehicle Registration', size: '1.9 MB', uploadDate: '2026-04-24', url: '#' },
-        { name: 'Insurance', size: '1.5 MB', uploadDate: '2026-04-24', url: '#' },
         { name: 'NBI Clearance', size: '2.8 MB', uploadDate: '2026-04-24', url: '#' },
       ],
     },
@@ -257,12 +263,13 @@ export default function UserAcceptancePage() {
       applicationDate: '2026-04-23',
       documentCount: 3,
       status: 'rejected',
+      accountStatus: 'inactive',
       vehicleType: 'Motorcycle',
       plateNumber: 'DEF 9012',
       documents: [
         { name: 'Driver\'s License', size: '2.0 MB', uploadDate: '2026-04-23', url: '#' },
+        { name: 'Government ID', size: '1.4 MB', uploadDate: '2026-04-23', url: '#' },
         { name: 'Vehicle Registration', size: '1.7 MB', uploadDate: '2026-04-23', url: '#' },
-        { name: 'Insurance', size: '1.3 MB', uploadDate: '2026-04-23', url: '#' },
       ],
     },
     {
@@ -303,7 +310,7 @@ export default function UserAcceptancePage() {
         { name: 'Valid ID', size: '1.5 MB', uploadDate: '2026-04-25', url: '#' },
       ],
     },
-  ];
+  ]);
 
   const filteredApplicants = applicants.filter(
     (applicant) =>
@@ -344,12 +351,36 @@ export default function UserAcceptancePage() {
   };
 
   const handleApprove = (applicantId: string) => {
-    console.log('Approved:', applicantId);
-    setSelectedApplicant(null);
+    const activatedDate = new Date().toISOString().split('T')[0];
+    let activatedApplicant: Applicant | null = null;
+
+    setApplicants((current) =>
+      current.map((applicant) => {
+        if (applicant.id !== applicantId) return applicant;
+
+        activatedApplicant = {
+          ...applicant,
+          status: 'approved',
+          accountStatus: 'active',
+          activatedDate,
+        };
+        return activatedApplicant;
+      }),
+    );
+
+    if (activatedApplicant) {
+      setSelectedApplicant(activatedApplicant);
+    }
   };
 
   const handleReject = (applicantId: string) => {
-    console.log('Rejected:', applicantId);
+    setApplicants((current) =>
+      current.map((applicant) =>
+        applicant.id === applicantId
+          ? { ...applicant, status: 'rejected', accountStatus: 'inactive', activatedDate: undefined }
+          : applicant,
+      ),
+    );
     setSelectedApplicant(null);
   };
 
@@ -809,7 +840,12 @@ export default function UserAcceptancePage() {
 
               {/* Submitted Documents */}
               <section>
-                <h3 className="text-lg font-bold text-[#041614] mb-4">Submitted Documents</h3>
+                <h3 className="text-lg font-bold text-[#041614] mb-1">Submitted Documents</h3>
+                {selectedApplicant.type === 'driver' && (
+                  <p className="mb-4 text-sm font-medium text-[#1A5D56]/65">
+                    Review the driver&apos;s license, government ID, and vehicle registration before activating the account.
+                  </p>
+                )}
                 <div className="space-y-3">
                   {selectedApplicant.documents.map((doc, index) => (
                     <div key={index} className="flex items-center justify-between p-4 bg-[#F0F9F8] rounded-xl hover:bg-[#39B5A8]/5 transition-colors">
@@ -835,6 +871,33 @@ export default function UserAcceptancePage() {
                 </div>
               </section>
 
+              {selectedApplicant.type === 'driver' && (
+                <section className="p-4 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8]">
+                  <h4 className="font-bold text-[#041614] mb-3">Driver Eligibility Status</h4>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase border ${
+                      selectedApplicant.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                      selectedApplicant.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                      'bg-red-50 text-red-600 border-red-100'
+                    }`}>
+                      {selectedApplicant.status}
+                    </span>
+                    <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase border ${
+                      selectedApplicant.accountStatus === 'active'
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                        : 'bg-gray-50 text-gray-500 border-gray-100'
+                    }`}>
+                      Account {selectedApplicant.accountStatus ?? 'inactive'}
+                    </span>
+                    {selectedApplicant.accountStatus === 'active' && selectedApplicant.activatedDate && (
+                      <p className="text-xs font-bold text-emerald-600">
+                        Driver can accept jobs as of {formatDate(selectedApplicant.activatedDate, 'short')}.
+                      </p>
+                    )}
+                  </div>
+                </section>
+              )}
+
               {/* Action Buttons */}
               {selectedApplicant.status === 'pending' && (
                 <div className="flex gap-4 pt-4">
@@ -843,7 +906,7 @@ export default function UserAcceptancePage() {
                     className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-500/20"
                   >
                     <CheckCircle className="w-5 h-5" />
-                    Approve
+                    {selectedApplicant.type === 'driver' ? 'Approve & Activate Driver' : 'Approve'}
                   </button>
                   <button
                     onClick={() => handleReject(selectedApplicant.id)}

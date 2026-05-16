@@ -17,18 +17,17 @@ import {
   Filter,
   Target,
   User,
-  ChevronDown,
   Settings,
   LogOut,
   ShieldCheck,
   Truck,
   XCircle,
+  ChevronDown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
-
-import { pakiParkLogo, pakiShipLogo } from '../../lib/assets';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type DashboardRange = 'Today' | '7 Days' | '30 Days' | 'Custom Range';
 type QuickActionTab = 'requests' | 'reports';
@@ -46,17 +45,16 @@ interface QuickActionItem {
 }
 
 export default function DashboardPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isDashboardMenuOpen, setIsDashboardMenuOpen] = useState(false);
   const [activeQuickAction, setActiveQuickAction] = useState<QuickActionTab>('requests');
   const [selectedRange, setSelectedRange] = useState<DashboardRange>('7 Days');
   const [isRangeMenuOpen, setIsRangeMenuOpen] = useState(false);
   const [customStartDate, setCustomStartDate] = useState('2026-05-01');
   const [customEndDate, setCustomEndDate] = useState('2026-05-15');
 
-  const placeholderName = 'Juan Dela Cruz';
+  const placeholderName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
   const formatShortDate = (value: string) =>
     new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(value));
 
@@ -110,7 +108,7 @@ export default function DashboardPage() {
         { title: 'New shipment booking created', description: 'Booking SHP-2214 was created for 7-Eleven Dapitan heading to P. Noval Hub.', time: '2 mins ago', type: 'Booking', icon: <Package className="h-4 w-4" />, tone: 'bg-[#E9FBF7] text-[#1A9B8B] border-[#C8F1EA]' },
         { title: 'Delayed shipment flagged', description: 'Driver ETA for Lawson Espana moved by 18 minutes due to traffic buildup on Espana Blvd.', time: '8 mins ago', type: 'Delay', icon: <Clock className="h-4 w-4" />, tone: 'bg-[#FFF4DB] text-[#D08700] border-[#FFE5A8]' },
         { title: 'Lost parcel report opened', description: 'A customer filed a lost parcel report for order PKS-9982 and escalation has started.', time: '14 mins ago', type: 'Incident', icon: <AlertTriangle className="h-4 w-4" />, tone: 'bg-[#FFE8E8] text-[#DE3B3B] border-[#FFD0D0]' },
-        { title: 'Admin approval completed', description: 'Juan Dela Cruz approved a pending fulfillment account request for the Lacson cluster.', time: '21 mins ago', type: 'Admin Action', icon: <ShieldCheck className="h-4 w-4" />, tone: 'bg-[#E8F5FF] text-[#2D74DA] border-[#D3E6FF]' },
+        { title: 'Admin approval completed', description: `${placeholderName} approved a pending fulfillment account request for the Lacson cluster.`, time: '21 mins ago', type: 'Admin Action', icon: <ShieldCheck className="h-4 w-4" />, tone: 'bg-[#E8F5FF] text-[#2D74DA] border-[#D3E6FF]' },
       ],
     },
     '7 Days': {
@@ -144,7 +142,7 @@ export default function DashboardPage() {
         { title: 'New shipment booking created', description: 'Booking SHP-2214 was created for 7-Eleven Dapitan heading to P. Noval Hub.', time: '2 mins ago', type: 'Booking', icon: <Package className="h-4 w-4" />, tone: 'bg-[#E9FBF7] text-[#1A9B8B] border-[#C8F1EA]' },
         { title: 'Delayed shipment flagged', description: 'Driver ETA for Lawson Espana moved by 18 minutes due to traffic buildup on Espana Blvd.', time: '8 mins ago', type: 'Delay', icon: <Clock className="h-4 w-4" />, tone: 'bg-[#FFF4DB] text-[#D08700] border-[#FFE5A8]' },
         { title: 'Lost parcel report opened', description: 'A customer filed a lost parcel report for order PKS-9982 and escalation has started.', time: '14 mins ago', type: 'Incident', icon: <AlertTriangle className="h-4 w-4" />, tone: 'bg-[#FFE8E8] text-[#DE3B3B] border-[#FFD0D0]' },
-        { title: 'Admin approval completed', description: 'Juan Dela Cruz approved a pending fulfillment account request for the Lacson cluster.', time: '21 mins ago', type: 'Admin Action', icon: <ShieldCheck className="h-4 w-4" />, tone: 'bg-[#E8F5FF] text-[#2D74DA] border-[#D3E6FF]' },
+        { title: 'Admin approval completed', description: `${placeholderName} approved a pending fulfillment account request for the Lacson cluster.`, time: '21 mins ago', type: 'Admin Action', icon: <ShieldCheck className="h-4 w-4" />, tone: 'bg-[#E8F5FF] text-[#2D74DA] border-[#D3E6FF]' },
         { title: 'Shipment delivered successfully', description: 'Uncle John Noval route posted a successful handoff and closed the trip in the system.', time: '34 mins ago', type: 'Delivery', icon: <Truck className="h-4 w-4" />, tone: 'bg-[#ECFDF3] text-[#199C5B] border-[#CFF3DE]' },
       ],
     },
@@ -242,10 +240,10 @@ export default function DashboardPage() {
     document.body.removeChild(link);
   };
 
-  const pendingUserRequests = [
-    { name: 'Mika Ramos', role: 'Hub Coordinator', submitted: '9 mins ago', priority: 'High' },
-    { name: 'Paolo Lim', role: 'Dispatch Support', submitted: '21 mins ago', priority: 'Medium' },
-    { name: 'Aira Villanueva', role: 'Operations Analyst', submitted: '48 mins ago', priority: 'High' },
+  const pendingDriverApplications = [
+    { name: 'Maria Santos', vehicle: 'Motorcycle', submitted: '9 mins ago', priority: 'High' },
+    { name: 'Paolo Lim', vehicle: 'Van', submitted: '21 mins ago', priority: 'Medium' },
+    { name: 'Aira Villanueva', vehicle: 'Motorcycle', submitted: '48 mins ago', priority: 'High' },
   ];
 
   const lostParcelReports = [
@@ -254,21 +252,21 @@ export default function DashboardPage() {
     { id: 'LPR-1014', route: 'UST Overpass to Lerma', status: 'Awaiting rider update', submitted: '52 mins ago' },
   ];
 
-  const [selectedQuickActionKey, setSelectedQuickActionKey] = useState('Mika Ramos');
+  const [selectedQuickActionKey, setSelectedQuickActionKey] = useState('Maria Santos');
 
   const quickActionItems =
     activeQuickAction === 'requests'
-      ? pendingUserRequests.map((request) => ({
-          key: request.name,
-          primary: request.name,
-          secondary: `${request.role} • Submitted ${request.submitted}`,
-          badge: request.priority,
+      ? pendingDriverApplications.map((application) => ({
+          key: application.name,
+          primary: application.name,
+          secondary: `${application.vehicle} driver application - Submitted ${application.submitted}`,
+          badge: application.priority,
           badgeTone:
-            request.priority === 'High'
+            application.priority === 'High'
               ? 'border-[#FFD6D6] bg-[#FFF0F0] text-[#D64242]'
               : 'border-[#D7EBFF] bg-[#EFF7FF] text-[#2D74DA]',
-          action: 'Review Request',
-          detail: `${request.name} is awaiting approval for ${request.role} access. Review submitted credentials and verify onboarding readiness before approving the request.`,
+          action: 'Review Driver',
+          detail: `${application.name} is awaiting driver eligibility review. Check the uploaded license, government ID, and vehicle registration before approving and activating the account.`,
           followUpLabel: 'Open User Acceptance',
           followUpPath: '/pakiship/user-acceptance',
         }))
@@ -308,52 +306,6 @@ export default function DashboardPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-[#39B5A8]/10 px-10 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <button
-                onClick={() => setIsDashboardMenuOpen(!isDashboardMenuOpen)}
-                className="flex items-center gap-3 bg-[#F0F9F8] px-4 py-2.5 rounded-xl border border-[#39B5A8]/10 hover:bg-[#39B5A8]/5 transition-all"
-              >
-                <img src={pakiShipLogo} alt="Current" className="h-5 w-auto object-contain" />
-                <ChevronDown className={`w-4 h-4 text-[#1A5D56] transition-transform ${isDashboardMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isDashboardMenuOpen && (
-                <div className="absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#39B5A8]/10 overflow-hidden z-20">
-                  <div className="p-2 space-y-1">
-                    <button
-                      onClick={() => setIsDashboardMenuOpen(false)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-[#F0F9F8] transition-colors text-left group"
-                    >
-                      <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                        <img src={pakiShipLogo} alt="PakiShip" className="h-6 w-auto" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-[#041614] text-xs">PakiShip</p>
-                        <p className="text-[10px] text-[#39B5A8] font-bold">Logistics</p>
-                      </div>
-                      <div className="w-1.5 h-1.5 bg-[#39B5A8] rounded-full" />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setIsDashboardMenuOpen(false);
-                        navigate('/pakipark/dashboard');
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#F0F9F8] transition-colors text-left group"
-                    >
-                      <div className="p-1.5 bg-white rounded-lg border border-gray-100 group-hover:border-emerald-100 transition-colors">
-                        <img src={pakiParkLogo} alt="PakiPark" className="h-6 w-auto" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-[#041614] text-xs">PakiPark</p>
-                        <p className="text-[10px] text-gray-400 font-bold">Parking</p>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
             <div className="flex items-center gap-4 bg-[#F0F9F8] px-4 py-2 rounded-xl border border-[#39B5A8]/10 w-153">
               <Search className="w-4 h-4 text-[#39B5A8]/60" />
               <input
@@ -568,7 +520,7 @@ export default function DashboardPage() {
                         type="button"
                         onClick={() => {
                           setActiveQuickAction('requests');
-                          setSelectedQuickActionKey('Mika Ramos');
+                          setSelectedQuickActionKey('Maria Santos');
                         }}
                         className={`rounded-[1.75rem] border p-4 text-left transition-all ${
                           activeQuickAction === 'requests'
@@ -582,8 +534,8 @@ export default function DashboardPage() {
                               <FileClock className="h-5 w-5" />
                             </div>
                             <div>
-                              <p className="font-bold text-[#041614]">Review Pending User Requests</p>
-                              <p className="text-xs text-gray-400">3 items waiting for approval</p>
+                              <p className="font-bold text-[#041614]">Review Driver Applications</p>
+                              <p className="text-xs text-gray-400">3 drivers waiting for document review</p>
                             </div>
                           </div>
                           <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#39B5A8] shadow-sm">3</span>
@@ -621,7 +573,7 @@ export default function DashboardPage() {
                 <CardContent className="p-8">
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-sm font-bold uppercase tracking-widest text-[#39B5A8]">
-                      {activeQuickAction === 'requests' ? 'Pending Request Queue' : 'Lost Parcel Queue'}
+                      {activeQuickAction === 'requests' ? 'Driver Application Queue' : 'Lost Parcel Queue'}
                     </h3>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
                       Dashboard Response
@@ -868,3 +820,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

@@ -5,7 +5,6 @@ import {
   Car,
   Search,
   User,
-  ChevronDown,
   Settings,
   LogOut,
   TrendingUp,
@@ -16,24 +15,21 @@ import {
   Clock,
   Bike,
   Truck,
-  History
+  History,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
-
-// Assets
-import { pakiParkLogo, pakiShipLogo } from '../../lib/assets';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 export default function DashboardPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
-  const [isDashboardMenuOpen, setIsDashboardMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  const displayName = "Juan Dela Cruz";
-
+  const displayName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -79,43 +75,6 @@ export default function DashboardPage() {
         {/* Top Navbar */}
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-[#1e3d5a]/10 px-10 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <button
-                onClick={() => setIsDashboardMenuOpen(!isDashboardMenuOpen)}
-                className="flex items-center gap-3 bg-[#f4f7fa] px-4 py-2.5 rounded-xl border border-[#1e3d5a]/10 hover:bg-[#1e3d5a]/5 transition-all"
-              >
-                <img src={pakiParkLogo} alt="Current" className="h-5 w-auto object-contain" />
-                <ChevronDown className={`w-4 h-4 text-[#1e3d5a] transition-transform ${isDashboardMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isDashboardMenuOpen && (
-                <div className="absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#1e3d5a]/10 overflow-hidden z-20">
-                  <div className="p-2 space-y-1">
-                    <button onClick={() => setIsDashboardMenuOpen(false)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-[#f4f7fa] transition-colors text-left group">
-                      <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                        <img src={pakiParkLogo} alt="PakiPark" className="h-6 w-auto" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-[#1e3d5a] text-xs">PakiPark</p>
-                        <p className="text-[10px] text-[#ee6b20] font-bold">Parking</p>
-                      </div>
-                      <div className="w-1.5 h-1.5 bg-[#ee6b20] rounded-full" />
-                    </button>
-                    
-                    <button onClick={() => { setIsDashboardMenuOpen(false); navigate('/pakiship/dashboard'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#f4f7fa] transition-colors text-left group">
-                      <div className="p-1.5 bg-white rounded-lg border border-gray-100">
-                        <img src={pakiShipLogo} alt="PakiShip" className="h-6 w-auto" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-[#1e3d5a] text-xs">PakiShip</p>
-                        <p className="text-[10px] text-gray-400 font-bold">Logistics</p>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
             <div className="flex items-center gap-4 bg-[#f4f7fa] px-4 py-2 rounded-xl border border-[#1e3d5a]/10 w-153">
               <Search className="w-4 h-4 text-[#1e3d5a]/60" />
               <input

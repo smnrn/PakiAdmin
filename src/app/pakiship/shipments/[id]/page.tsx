@@ -43,7 +43,9 @@ const shipments: ShipmentRecord[] = [
 ];
 
 export default function ShipmentDetailPage() {
-  const { id } = useParams(); // URL param like /pakiship/shipments/[id]
+  const params = useParams(); // URL param like /pakiship/shipments/[id]
+  const idParam = params?.id;
+  const id = Array.isArray(idParam) ? idParam[0] : idParam;
   const router = useRouter();
 
   // Find shipment by ID; fallback to first entry for demo purposes

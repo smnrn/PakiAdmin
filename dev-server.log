@@ -1,0 +1,66 @@
+
+> @figma/my-make-file@0.0.1 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 1473ms
+ ○ Compiling /pakiadmin/login ...
+ ✓ Compiled /pakiadmin/login in 1931ms (510 modules)
+ GET /pakiadmin/login 200 in 2100ms
+ GET /pakiadmin/login 200 in 58ms
+ ✓ Compiled /pakiadmin/super-admin in 485ms (554 modules)
+ GET /pakiadmin/super-admin 200 in 594ms
+ GET /pakiadmin/super-admin 200 in 120ms
+ ✓ Compiled / in 440ms (542 modules)
+ ○ Compiling /pakiship/dashboard ...
+ ✓ Compiled /pakiship/dashboard in 1111ms (600 modules)
+ ✓ Compiled /pakiship/drivers in 489ms (620 modules)
+ ✓ Compiled in 997ms (623 modules)
+ ✓ Compiled in 555ms (623 modules)
+ ✓ Compiled in 183ms (323 modules)
+ ✓ Compiled in 488ms (623 modules)
+ ✓ Compiled in 844ms (623 modules)
+ ✓ Compiled in 800ms (623 modules)
+ GET /pakiadmin/super-admin 200 in 228ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1025ms (626 modules)
+ GET /_next/static/css/app/layout.css?v=1778903397755 404 in 1277ms
+ GET /_next/static/chunks/webpack.js?v=1778903397755 404 in 1276ms
+ GET /_next/static/chunks/main-app.js?v=1778903397755 404 in 944ms
+ GET /_next/static/chunks/app/pakiadmin/super-admin/page.js 404 in 942ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 940ms
+ GET /_next/static/chunks/app/layout.js 404 in 938ms
+ ✓ Compiled in 1033ms (619 modules)
+ ✓ Compiled in 267ms (619 modules)
+ ✓ Compiled in 2.8s (619 modules)
+ ✓ Compiled in 369ms (619 modules)
+ ✓ Compiled in 844ms (619 modules)
+ ✓ Compiled in 269ms (619 modules)
+ ✓ Compiled in 2s (619 modules)
+ ✓ Compiled in 458ms (619 modules)
+ ✓ Compiled in 708ms (321 modules)
+ ✓ Compiled in 267ms (321 modules)
+ ✓ Compiled in 181ms (321 modules)
+ ✓ Compiled in 760ms (619 modules)
+ ✓ Compiled in 164ms (321 modules)
+ ✓ Compiled in 454ms (619 modules)
+ ✓ Compiled in 776ms (321 modules)
+ ✓ Compiled in 440ms (321 modules)
+ ✓ Compiled in 434ms (619 modules)
+ ✓ Compiled in 612ms (619 modules)
+ ✓ Compiled in 856ms (619 modules)
+ ✓ Compiled in 715ms (619 modules)
+ ✓ Compiled in 983ms (619 modules)
+ ✓ Compiled in 1086ms (619 modules)
+ ✓ Compiled in 735ms (619 modules)
+ ✓ Compiled in 684ms (619 modules)
+ ✓ Compiled in 678ms (619 modules)
+ ✓ Compiled /_not-found in 261ms (608 modules)
+ GET / 404 in 379ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.9s (853 modules)
+ GET /pakiship/dashboard 404 in 3124ms
+ GET /pakiadmin/login 404 in 3295ms

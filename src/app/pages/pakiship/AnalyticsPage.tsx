@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type AnalyticsRange = 'Today' | 'Last 7 Days' | 'Last 30 Days' | 'Year to Date';
 
@@ -45,12 +46,12 @@ interface AnalyticsSummary {
 }
 
 export default function AnalyticsPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [dateRange, setDateRange] = useState<AnalyticsRange>('Year to Date');
 
-  const placeholderName = "Juan Dela Cruz";
+  const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
   const handleLogout = () => {
     logout();

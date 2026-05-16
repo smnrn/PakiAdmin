@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 
 import { pakiAdminLogo } from '../../lib/assets';
+import { isTwoFactorEnabledForEmail } from '../../lib/twoFactor';
+import { getSampleAccountRole } from '../../lib/sampleAccounts';
 
 export default function PakiAdminLogin() {
   const navigate = useNavigate();
@@ -32,11 +34,21 @@ export default function PakiAdminLogin() {
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [twoFactorError, setTwoFactorError] = useState("");
 
   // Forgot Password Popup State
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
+
+  const handleUseSampleAccount = (email: string) => {
+    setIdentifier(email);
+    setPassword("Admin@123");
+    setError("");
+    setTwoFactorError("");
+  };
 
   useEffect(() => {
     if (/[a-zA-Z@]/.test(identifier)) {
@@ -57,29 +69,75 @@ export default function PakiAdminLogin() {
     if (error) setError("");
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (isEmail) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(identifier)) return setError("Invalid administrative email format.");
-    } else {
-      if (identifier.length !== 10) return setError("Invalid mobile number. 10 digits required.");
-    }
-
-    const passRegex = /^(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
-    if (!passRegex.test(password)) {
-      return setError("Security Alert: Invalid credentials or insufficient key complexity.");
-    }
-
+  const completeLogin = async () => {
     setIsLoading(true);
     try {
+      const role = getSampleAccountRole(identifier);
+
+      if (role === 'super-admin') {
+        await login(identifier, password, 'pakiadmin');
+        navigate("/pakiadmin/super-admin");
+        return;
+      }
+
       await login(identifier, password, 'pakiship');
       navigate("/pakiship/dashboard");
     } catch (err) {
       setError("Authorization failed. Please check your credentials.");
       setIsLoading(false);
     }
+  };
+
+  const validateCredentials = () => {
+    if (isEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(identifier)) {
+        setError("Invalid administrative email format.");
+        return false;
+      }
+    } else {
+      if (identifier.length !== 10) {
+        setError("Invalid mobile number. 10 digits required.");
+        return false;
+      }
+    }
+
+    const passRegex = /^(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!passRegex.test(password)) {
+      setError("Security Alert: Invalid credentials or insufficient key complexity.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateCredentials()) {
+      return;
+    }
+
+    if (isTwoFactorEnabledForEmail(identifier, ['pakiadmin', 'pakiship'])) {
+      setTwoFactorCode("");
+      setTwoFactorError("");
+      setShowTwoFactorModal(true);
+      return;
+    }
+
+    await completeLogin();
+  };
+
+  const handleTwoFactorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!/^\d{6}$/.test(twoFactorCode)) {
+      setTwoFactorError("Enter the 6-digit authenticator code.");
+      return;
+    }
+
+    setShowTwoFactorModal(false);
+    await completeLogin();
   };
 
   const handleResetRequest = (e: React.FormEvent) => {
@@ -158,6 +216,21 @@ export default function PakiAdminLogin() {
                 <p className="text-[#2c0735]/40 font-semibold text-sm">
                   Identity validation required for console decryption.
                 </p>
+              </div>
+
+              <div className="mb-6 grid gap-3 sm:grid-cols-2">
+                <SampleAccountButton
+                  active={identifier.trim().toLowerCase() === "superadmin@gmail.com"}
+                  email="superadmin@gmail.com"
+                  label="Super Admin"
+                  onClick={() => handleUseSampleAccount("superadmin@gmail.com")}
+                />
+                <SampleAccountButton
+                  active={identifier.trim().toLowerCase() === "admin@gmail.com"}
+                  email="admin@gmail.com"
+                  label="Admin"
+                  onClick={() => handleUseSampleAccount("admin@gmail.com")}
+                />
               </div>
 
               <form onSubmit={handleLogin} className="space-y-5">
@@ -339,7 +412,112 @@ export default function PakiAdminLogin() {
           </div>
         </div>
       )}
+
+      {showTwoFactorModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-[#2c0735]/40 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => {
+              setShowTwoFactorModal(false);
+              setTwoFactorCode("");
+              setTwoFactorError("");
+            }}
+          />
+
+          <div className="relative w-full max-w-md bg-white rounded-[2.5rem] p-8 md:p-10 shadow-2xl border border-[#dec0f1] animate-in zoom-in-95 fade-in duration-300">
+            <button
+              onClick={() => {
+                setShowTwoFactorModal(false);
+                setTwoFactorCode("");
+                setTwoFactorError("");
+              }}
+              className="absolute right-6 top-6 p-2 rounded-full hover:bg-[#dec0f1]/20 transition-colors"
+            >
+              <X className="w-5 h-5 text-[#2c0735]" />
+            </button>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <div className="w-14 h-14 bg-[#dec0f1]/30 rounded-2xl flex items-center justify-center">
+                  <Lock className="w-7 h-7 text-[#2c0735]" />
+                </div>
+                <h3 className="text-2xl font-black text-[#2c0735]">Two-Factor Verification</h3>
+                <p className="text-[#2c0735]/50 text-sm font-bold leading-relaxed">
+                  This account has 2FA enabled. Enter the 6-digit code from the authenticator app to continue.
+                </p>
+              </div>
+
+              <form onSubmit={handleTwoFactorSubmit} className="space-y-4">
+                {twoFactorError && (
+                  <div className="bg-red-50 border border-red-100 py-3 px-4 rounded-2xl flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                    <p className="text-sm font-bold text-red-600 leading-tight">{twoFactorError}</p>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-[#2c0735] uppercase tracking-widest px-1 opacity-60">
+                    Authenticator Code
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={twoFactorCode}
+                    onChange={(e) => {
+                      setTwoFactorCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                      setTwoFactorError("");
+                    }}
+                    placeholder="123456"
+                    className="w-full bg-[#dec0f1]/10 border border-[#dec0f1] rounded-xl px-4 py-3.5 text-center text-[#2c0735] focus:border-[#2c0735] focus:bg-white outline-none transition-all text-2xl font-black tracking-[0.35em]"
+                    required
+                  />
+                  <p className="text-xs font-semibold text-[#2c0735]/45">
+                    Prototype mode accepts any 6-digit number.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-[#2c0735] text-white font-black py-4 rounded-xl hover:shadow-xl hover:shadow-[#2c0735]/20 transition-all active:scale-[0.98] text-xs uppercase tracking-widest disabled:opacity-50"
+                >
+                  {isLoading ? "Verifying..." : "Verify and Continue"}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function SampleAccountButton({
+  active,
+  email,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  email: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl border px-4 py-3 text-left transition-all ${
+        active
+          ? "border-[#2c0735] bg-[#2c0735] text-white shadow-lg shadow-[#2c0735]/15"
+          : "border-[#dec0f1] bg-[#dec0f1]/10 text-[#2c0735] hover:bg-[#dec0f1]/20"
+      }`}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.16em]">{label}</p>
+      <p className={`mt-1 text-xs font-bold ${active ? "text-white/75" : "text-[#2c0735]/55"}`}>{email}</p>
+      <p className={`mt-1 text-[11px] font-semibold ${active ? "text-white/65" : "text-[#2c0735]/45"}`}>Password: Admin@123</p>
+    </button>
   );
 }
 

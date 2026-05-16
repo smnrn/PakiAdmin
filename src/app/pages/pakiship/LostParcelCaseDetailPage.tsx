@@ -23,7 +23,9 @@ import {
 } from 'lucide-react';
 
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from '../../lib/router';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 import {
   LOST_PARCEL_CASES,
   type InvestigationStatusUpdate,
@@ -42,6 +44,7 @@ interface LostParcelCaseDetailPageProps {
 
 export default function LostParcelCaseDetailPage({ caseId }: LostParcelCaseDetailPageProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const initialCase = LOST_PARCEL_CASES.find((item) => item.id === caseId) ?? LOST_PARCEL_CASES[0];
   const [lostCase, setLostCase] = useState<LostParcelCase>(initialCase);
   const [selectedStatus, setSelectedStatus] = useState<LostParcelStatus | null>(null);
@@ -57,6 +60,7 @@ export default function LostParcelCaseDetailPage({ caseId }: LostParcelCaseDetai
   const notificationSubject = `Resolution for lost parcel case ${lostCase.id}`;
   const notificationMessage = buildResolutionNotificationMessage(lostCase);
   const canSendResolutionNotification = lostCase.status === 'closed' && !lostCase.resolutionNotification;
+  const adminName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
 
   const handleStatusUpdate = () => {
     if (!selectedStatus || !statusNote.trim()) return;
@@ -65,7 +69,7 @@ export default function LostParcelCaseDetailPage({ caseId }: LostParcelCaseDetai
       id: `ISH-${Date.now()}`,
       status: selectedStatus,
       timestamp: new Date().toISOString(),
-      updatedBy: 'Juan Dela Cruz',
+      updatedBy: adminName,
       note: statusNote.trim(),
     };
 
@@ -90,14 +94,14 @@ export default function LostParcelCaseDetailPage({ caseId }: LostParcelCaseDetai
       amount: parsedRefundAmount,
       method: refundMethod,
       timestamp,
-      issuedBy: 'Juan Dela Cruz',
+      issuedBy: adminName,
       note: refundNote.trim(),
     };
     const refundUpdate: InvestigationStatusUpdate = {
       id: `ISH-${Date.now()}-refund`,
       status: 'refunded',
       timestamp,
-      updatedBy: 'Juan Dela Cruz',
+      updatedBy: adminName,
       note: `Refund issued via ${refundMethod}. ${refund.note}`,
     };
 
@@ -118,7 +122,7 @@ export default function LostParcelCaseDetailPage({ caseId }: LostParcelCaseDetai
       subject: notificationSubject,
       message: notificationMessage,
       sentAt: new Date().toISOString(),
-      sentBy: 'Juan Dela Cruz',
+      sentBy: adminName,
       outcome: lostCase.status,
     };
 

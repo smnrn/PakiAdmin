@@ -26,6 +26,7 @@ import { NotificationMenuButton } from '../../components/settings/NotificationMe
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { NotificationPreferencesPanel } from '../../components/settings/NotificationPreferencesPanel';
 import { TwoFactorAuthPanel } from '../../components/settings/TwoFactorAuthPanel';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 interface UserRecord {
   email: string;
@@ -82,11 +83,12 @@ const INITIAL_ADMIN_REQUESTS: AdminRequestRecord[] = [
 ];
 
 export default function SettingsPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const isSuperAdmin = user?.role === 'super-admin';
 
   // --- STATE LOGIC ---
-  const [activeTab, setActiveTab] = useState<SettingsTab>('team');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(isSuperAdmin ? 'team' : 'security');
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -110,9 +112,10 @@ export default function SettingsPage() {
   const [requestToReject, setRequestToReject] = useState<AdminRequestRecord | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const roleOptions = ["No Access", "View Only", "Limited Access", "Full Access", "Super Admin"];
+  const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
   const [users, setUsers] = useState<UserRecord[]>([
-    { id: 1, name: "Juan Dela Cruz", email: "juandelacruz@pakiadmin.ph", role: "Super Admin", status: "Active" },
+    { id: 1, name: placeholderName, email: user?.email || "juandelacruz@pakiadmin.ph", role: "Super Admin", status: "Active" },
     { id: 2, name: "Martha Burgos", email: "marthaburgos@pakiadmin.ph", role: "Full Access", status: "Active" },
     { id: 3, name: "Rhea Rivera", email: "rhearivera@pakiadmin.ph", role: "View Only", status: "Inactive" },
     { id: 4, name: "Justin Perez", email: "justinperez@pakiadmin.ph", role: "Limited Access", status: "Active" },
@@ -188,7 +191,6 @@ export default function SettingsPage() {
     }, 1500);
   };
 
-  const placeholderName = "Juan Dela Cruz";
   const pendingAdminRequests = adminRequests.filter((request) => request.status === 'pending');
 
   const handleApproveRequest = (requestId: string) => {
@@ -473,35 +475,39 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setActiveTab('team')}
-              className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
-                activeTab === 'team'
-                  ? 'bg-[#39B5A8] text-white shadow-lg shadow-[#39B5A8]/20'
-                  : 'bg-white text-[#1A5D56] border border-[#39B5A8]/10 hover:bg-[#F0F9F8]'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              Team Management
-            </button>
-            <button
-              onClick={() => setActiveTab('requests')}
-              className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
-                activeTab === 'requests'
-                  ? 'bg-[#39B5A8] text-white shadow-lg shadow-[#39B5A8]/20'
-                  : 'bg-white text-[#1A5D56] border border-[#39B5A8]/10 hover:bg-[#F0F9F8]'
-              }`}
-            >
-              <UserCheck className="w-4 h-4" />
-              Admin Requests
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                  activeTab === 'requests' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
-                }`}
-              >
-                {pendingAdminRequests.length}
-              </span>
-            </button>
+            {isSuperAdmin && (
+              <>
+                <button
+                  onClick={() => setActiveTab('team')}
+                  className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
+                    activeTab === 'team'
+                      ? 'bg-[#39B5A8] text-white shadow-lg shadow-[#39B5A8]/20'
+                      : 'bg-white text-[#1A5D56] border border-[#39B5A8]/10 hover:bg-[#F0F9F8]'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  Team Management
+                </button>
+                <button
+                  onClick={() => setActiveTab('requests')}
+                  className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
+                    activeTab === 'requests'
+                      ? 'bg-[#39B5A8] text-white shadow-lg shadow-[#39B5A8]/20'
+                      : 'bg-white text-[#1A5D56] border border-[#39B5A8]/10 hover:bg-[#F0F9F8]'
+                  }`}
+                >
+                  <UserCheck className="w-4 h-4" />
+                  Admin Requests
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                      activeTab === 'requests' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
+                    {pendingAdminRequests.length}
+                  </span>
+                </button>
+              </>
+            )}
             <button
               onClick={() => setActiveTab('security')}
               className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${
@@ -515,7 +521,7 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          {activeTab === 'team' ? (
+          {isSuperAdmin && activeTab === 'team' ? (
             <>
               <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm overflow-hidden flex flex-col h-[500px]">
                 <CardHeader className="p-8 border-b border-[#39B5A8]/5 bg-white flex-shrink-0">
@@ -616,7 +622,7 @@ export default function SettingsPage() {
                 }}
               />
             </>
-          ) : activeTab === 'requests' ? (
+          ) : isSuperAdmin && activeTab === 'requests' ? (
             <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm overflow-hidden">
               <CardHeader className="p-8 border-b border-[#39B5A8]/5 bg-white">
                 <div className="flex items-center gap-3">

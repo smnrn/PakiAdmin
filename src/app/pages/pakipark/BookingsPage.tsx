@@ -27,6 +27,7 @@ import {
 import { Badge } from "../../components/ui/badge";
 import { useAuth } from '../../contexts/AuthContext';
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 // MODAL IMPORT
 import AddNewHub from './components/AddNewHub';
@@ -49,7 +50,7 @@ interface BookingRecord {
 }
 
 export default function BookingsPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -59,7 +60,7 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
-  const displayName = "Juan Dela Cruz";
+  const displayName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
   const handleLogout = () => {
     logout();

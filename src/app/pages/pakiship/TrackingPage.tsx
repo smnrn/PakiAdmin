@@ -18,13 +18,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 export default function TrackingPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  const placeholderName = "Juan Dela Cruz";
+  const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
   const handleLogout = () => {
     logout();

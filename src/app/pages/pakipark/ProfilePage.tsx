@@ -25,6 +25,7 @@ import { Input } from '../../components/ui/input';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 function readStoredValue(key: string, fallback: string) {
   if (typeof window === 'undefined') {
@@ -36,8 +37,10 @@ function readStoredValue(key: string, fallback: string) {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sampleDisplayName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
+  const sampleEmail = user?.email || 'juandelacruz@pakiadmin.com';
 
   // --- STATE MANAGEMENT ---
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -55,8 +58,8 @@ export default function ProfilePage() {
 
   const [formData, setFormData] = useState({
     adminId: readStoredValue('pakipark_adminId', 'ADM-2026-1001'),
-    name: readStoredValue('pakipark_name', 'Juan Dela Cruz'),
-    email: readStoredValue('pakipark_email', 'juandelacruz@pakiadmin.com'),
+    name: getDisplayNameForEmail(user?.email, readStoredValue('pakipark_name', sampleDisplayName)),
+    email: user?.email || readStoredValue('pakipark_email', sampleEmail),
     phone: readStoredValue('pakipark_phone', '09123456789'),
     address: readStoredValue('pakipark_address', 'Greenbelt 3, Makati City, Manila'),
     dob: readStoredValue('pakipark_dob', '2005-06-01'),

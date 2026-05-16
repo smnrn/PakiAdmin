@@ -15,7 +15,9 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { useNavigate } from '../../lib/router';
+import { useAuth } from '../../contexts/AuthContext';
 import { TwoFactorAuthPanel } from '../../components/settings/TwoFactorAuthPanel';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
@@ -127,9 +129,21 @@ const MOCK_TEAM: TeamMember[] = [
 
 export default function AdminSettingsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const currentAdminName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
   const [activeTab, setActiveTab] = useState<'team' | 'requests' | 'security'>('team');
   const [requests, setRequests] = useState<AdminRequest[]>(MOCK_REQUESTS);
-  const [teamMembers] = useState<TeamMember[]>(MOCK_TEAM);
+  const [teamMembers] = useState<TeamMember[]>(() =>
+    MOCK_TEAM.map((member, index) =>
+      index === 0
+        ? {
+            ...member,
+            name: currentAdminName,
+            email: user?.email || member.email,
+          }
+        : member,
+    ),
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<RequestStatus | 'all'>('all');
   const [selectedRequest, setSelectedRequest] = useState<AdminRequest | null>(null);

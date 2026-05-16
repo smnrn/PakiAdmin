@@ -25,16 +25,17 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type DateRange = 'Today' | 'Last 7 Days' | 'Last 30 Days' | 'Year to Date';
 
 export default function ReportsPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>('Year to Date');
 
-  const displayName = "Juan Dela Cruz";
+  const displayName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
   const handleLogout = () => {
     logout();

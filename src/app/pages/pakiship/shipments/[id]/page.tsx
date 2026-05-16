@@ -41,7 +41,9 @@ const shipments: ShipmentRecord[] = [
 ];
 
 export default function ShipmentDetailPage() {
-  const { id } = useParams(); // extracts the dynamic route id
+  const params = useParams(); // extracts the dynamic route id
+  const idParam = params?.id;
+  const id = Array.isArray(idParam) ? idParam[0] : idParam;
   const router = useRouter();
 
   const shipment = shipments.find((s) => s.id === id) ?? shipments[0];

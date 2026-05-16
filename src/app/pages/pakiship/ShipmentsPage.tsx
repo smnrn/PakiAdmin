@@ -30,6 +30,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
+import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 interface ShipmentRecord {
   id: string;
@@ -47,7 +48,7 @@ interface ShipmentRecord {
 }
 
 export default function ShipmentsPage() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [bookingSearchQuery, setBookingSearchQuery] = useState('');
@@ -57,7 +58,7 @@ export default function ShipmentsPage() {
   const [endDateFilter, setEndDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const placeholderName = 'Juan Dela Cruz';
+  const placeholderName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
   const shipmentsPerPage = 6;
 
   const handleLogout = () => {

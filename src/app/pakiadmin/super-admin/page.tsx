@@ -5,7 +5,7 @@ import SuperAdminDashboardPage from '@/modules/pages/pakiadmin/SuperAdminDashboa
 
 export default function Page() {
   return (
-    <ProtectedRoute app="pakiadmin">
+    <ProtectedRoute app="pakiadmin" requiredRole="super-admin">
       <SuperAdminDashboardPage />
     </ProtectedRoute>
   );
