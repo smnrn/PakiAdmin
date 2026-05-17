@@ -11,7 +11,9 @@ import {
   MapPin,
   MessageSquareText,
   Package,
+  PencilLine,
   Phone,
+  Plus,
   Receipt,
   Route,
   Send,
@@ -28,6 +30,7 @@ import { useNavigate } from '../../lib/router';
 import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 import {
   LOST_PARCEL_CASES,
+  type InternalCaseNote,
   type InvestigationStatusUpdate,
   type LostParcelCase,
   type LostParcelStatus,
@@ -53,6 +56,8 @@ export default function LostParcelCaseDetailPage({ caseId }: LostParcelCaseDetai
   const [refundMethod, setRefundMethod] = useState<RefundMethod>(initialCase.refund?.method ?? 'GCash');
   const [refundNote, setRefundNote] = useState(initialCase.refund?.note ?? '');
   const [isResolutionModalOpen, setIsResolutionModalOpen] = useState(false);
+  const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
+  const [internalNote, setInternalNote] = useState('');
   const availableStatuses = getAvailableStatuses(lostCase.status);
   const parsedRefundAmount = Number(refundAmount);
   const refundAmountError = getRefundAmountError(parsedRefundAmount, lostCase.parcelValue);
@@ -133,6 +138,23 @@ export default function LostParcelCaseDetailPage({ caseId }: LostParcelCaseDetai
     setIsResolutionModalOpen(false);
   };
 
+  const handleAddInternalNote = () => {
+    if (!internalNote.trim()) return;
+
+    const note: InternalCaseNote = {
+      id: `ICN-${Date.now()}`,
+      author: adminName,
+      timestamp: new Date().toISOString(),
+      message: internalNote.trim(),
+    };
+
+    setLostCase((current) => ({
+      ...current,
+      internalNotes: [note, ...current.internalNotes],
+    }));
+    setInternalNote('');
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#F0F9F8] font-sans text-[#1A5D56]">
       <PakiShipSidebar activeTab="shipments" />
@@ -175,6 +197,15 @@ export default function LostParcelCaseDetailPage({ caseId }: LostParcelCaseDetai
                 <InfoTile icon={<ShieldAlert className="h-4 w-4" />} label="Assigned Team" value={lostCase.assignedTeam} />
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsNotesDrawerOpen(true)}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#39B5A8] px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-[#2F9D91]"
+            >
+              <PencilLine className="h-4 w-4" />
+              Internal Notes
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{lostCase.internalNotes.length}</span>
+            </button>
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -442,6 +473,16 @@ export default function LostParcelCaseDetailPage({ caseId }: LostParcelCaseDetai
           subject={notificationSubject}
         />
       )}
+
+      {isNotesDrawerOpen && (
+        <InternalNotesDrawer
+          internalNote={internalNote}
+          notes={lostCase.internalNotes}
+          onAddNote={handleAddInternalNote}
+          onClose={() => setIsNotesDrawerOpen(false)}
+          onNoteChange={setInternalNote}
+        />
+      )}
     </div>
   );
 }
@@ -581,6 +622,100 @@ function AuditTrailItem({ isLast, item }: { isLast: boolean; item: Investigation
       </div>
     </div>
   );
+}
+
+function InternalNotesDrawer({
+  internalNote,
+  notes,
+  onAddNote,
+  onClose,
+  onNoteChange,
+}: {
+  internalNote: string;
+  notes: InternalCaseNote[];
+  onAddNote: () => void;
+  onClose: () => void;
+  onNoteChange: (value: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
+      <button type="button" aria-label="Close internal notes" className="absolute inset-0 cursor-default" onClick={onClose} />
+      <aside className="relative flex h-full w-full max-w-xl flex-col bg-white shadow-2xl">
+        <div className="border-b border-[#39B5A8]/10 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#39B5A8]">Internal Notes</p>
+              <h2 className="mt-2 text-2xl font-bold text-[#041614]">Case Notebook</h2>
+              <p className="mt-1 text-sm font-semibold text-[#1A5D56]/60">{notes.length} timestamped notes</p>
+            </div>
+            <button type="button" onClick={onClose} className="rounded-xl p-2 transition-colors hover:bg-[#F0F9F8]">
+              <X className="h-5 w-5 text-[#1A5D56]" />
+            </button>
+          </div>
+        </div>
+
+        <div className="border-b border-[#39B5A8]/10 bg-[#F0F9F8] p-6">
+          <div className="rounded-[1.75rem] border border-[#39B5A8]/10 bg-white p-4">
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-[#39B5A8]">Add Note</label>
+            <textarea
+              value={internalNote}
+              onChange={(event) => onNoteChange(event.target.value)}
+              placeholder="Write an internal investigation note"
+              rows={5}
+              className="w-full resize-none bg-transparent text-sm font-semibold leading-6 text-[#041614] outline-none placeholder:text-[#39B5A8]/40"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={onAddNote}
+            disabled={!internalNote.trim()}
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#39B5A8] px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-[#2F9D91] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+            Add Internal Note
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto p-6">
+          {notes.map((note) => (
+            <InternalNoteCard key={note.id} note={note} />
+          ))}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function InternalNoteCard({ note }: { note: InternalCaseNote }) {
+  return (
+    <article className="rounded-[2rem] border border-[#39B5A8]/10 bg-[#FCFEFE] p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F0F9F8] text-sm font-black text-[#39B5A8]">
+            {getInitials(note.author)}
+          </div>
+          <div>
+            <p className="font-black text-[#041614]">{note.author}</p>
+            <p className="mt-1 text-xs font-bold text-gray-400">{formatDateTime(note.timestamp)}</p>
+          </div>
+        </div>
+        <span className="inline-flex w-fit rounded-full border border-[#39B5A8]/10 bg-[#F0F9F8] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#39B5A8]">
+          Internal
+        </span>
+      </div>
+      <p className="mt-4 whitespace-pre-line text-sm font-medium leading-7 text-[#1A5D56]">{note.message}</p>
+    </article>
+  );
+}
+
+function getInitials(value: string) {
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
 }
 
 function auditDotClass(status: LostParcelStatus) {

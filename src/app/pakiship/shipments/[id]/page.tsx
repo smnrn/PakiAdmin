@@ -23,7 +23,7 @@ interface ShipmentRecord {
   date: string;
 }
 
-// Sample data – in a real app this would be fetched from an API
+// Sample data - in a real app this would be fetched from an API
 const shipments: ShipmentRecord[] = [
   {
     id: 'PKS-2026-120',

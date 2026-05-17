@@ -49,6 +49,7 @@ interface Applicant {
   businessType?: string;
   accountStatus?: 'inactive' | 'active';
   activatedDate?: string;
+  rejectionReason?: string;
   documents: Document[];
 }
 
@@ -203,6 +204,7 @@ export default function UserAcceptancePage() {
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
   const [dropOffApplications, setDropOffApplications] = useState<DropOffApplication[]>(MOCK_DROPOFF_APPLICATIONS);
   const [selectedDropOffApplication, setSelectedDropOffApplication] = useState<DropOffApplication | null>(null);
+  const [showApplicantRejectModal, setShowApplicantRejectModal] = useState(false);
   const [showDropOffRejectModal, setShowDropOffRejectModal] = useState(false);
   const [dropOffRejectionReason, setDropOffRejectionReason] = useState('');
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
@@ -359,25 +361,23 @@ export default function UserAcceptancePage() {
 
   const handleApprove = (applicantId: string) => {
     const activatedDate = new Date().toISOString().split('T')[0];
-    let activatedApplicant: Applicant | null = null;
 
     setApplicants((current) =>
       current.map((applicant) => {
         if (applicant.id !== applicantId) return applicant;
 
-        activatedApplicant = {
+        return {
           ...applicant,
           status: 'approved',
           accountStatus: 'active',
           activatedDate,
+          rejectionReason: undefined,
         };
-        return activatedApplicant;
       }),
     );
 
-    if (activatedApplicant) {
-      setSelectedApplicant(activatedApplicant);
-    }
+    setSelectedApplicant(null);
+    setShowApplicantRejectModal(false);
   };
 
   const handleReject = (applicantId: string) => {
@@ -386,14 +386,30 @@ export default function UserAcceptancePage() {
       return;
     }
 
+    let rejectedApplicant: Applicant | null = null;
+
     setApplicants((current) =>
-      current.map((applicant) =>
-        applicant.id === applicantId
-          ? { ...applicant, status: 'rejected', accountStatus: 'inactive', activatedDate: undefined }
-          : applicant,
-      ),
+      current.map((applicant) => {
+        if (applicant.id !== applicantId) return applicant;
+
+        rejectedApplicant = {
+          ...applicant,
+          status: 'rejected',
+          accountStatus: 'inactive',
+          activatedDate: undefined,
+          rejectionReason: rejectionReason.trim(),
+        };
+        return rejectedApplicant;
+      }),
     );
     setSelectedApplicant(null);
+    setShowApplicantRejectModal(false);
+    setRejectionReason('');
+  };
+
+  const openApplicantReview = (applicant: Applicant) => {
+    setSelectedApplicant(applicant);
+    setShowApplicantRejectModal(false);
     setRejectionReason('');
   };
 
@@ -432,7 +448,7 @@ export default function UserAcceptancePage() {
           : item,
       ),
     );
-    setSelectedDropOffApplication(rejectedApplication);
+    setSelectedDropOffApplication(null);
     setShowDropOffRejectModal(false);
     setDropOffRejectionReason('');
   };
@@ -443,6 +459,8 @@ export default function UserAcceptancePage() {
     setSearchQuery('');
     setSelectedApplicant(null);
     setSelectedDropOffApplication(null);
+    setShowApplicantRejectModal(false);
+    setShowDropOffRejectModal(false);
   };
 
   return (
@@ -685,275 +703,39 @@ export default function UserAcceptancePage() {
                   onSelectApplication={setSelectedDropOffApplication}
                 />
               ) : (
-              <>
-              <table className="w-full text-left">
-                <thead className="bg-[#F0F9F8]/50 border-b border-[#39B5A8]/5">
-                  <tr>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Applicant</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Application Date</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Region</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest text-center">Documents</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#39B5A8]/5">
-                  {filteredApplicants.map((applicant) => (
-                    <tr
-                      key={applicant.id}
-                      onClick={() => setSelectedApplicant(applicant)}
-                      className="hover:bg-[#F0F9F8]/30 transition-colors cursor-pointer group"
-                    >
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-[#39B5A8] to-[#1A5D56] rounded-xl flex items-center justify-center text-white font-bold">
-                            {applicant.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-bold text-[#041614] group-hover:text-[#39B5A8] transition-colors">{applicant.name}</p>
-                            <p className="text-xs text-gray-400 font-medium">{applicant.id}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <p className="font-semibold text-[#1A5D56]">{new Date(applicant.applicationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                      </td>
-                      <td className="px-6 py-5">
-                        <p className="font-semibold text-[#1A5D56]">{applicant.region}</p>
-                      </td>
-                      <td className="px-6 py-5 text-center">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F0F9F8] text-[#39B5A8] rounded-full font-bold text-xs">
-                          <FileText className="w-3.5 h-3.5" />
-                          {applicant.documentCount}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase border ${
-                          applicant.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                          applicant.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                          'bg-red-50 text-red-600 border-red-100'
-                        }`}>
-                          {applicant.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {filteredApplicants.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-gray-400 font-medium">No applicants found</p>
-                </div>
-              )}
-              </>
+                <ApplicantsTable
+                  applicants={filteredApplicants}
+                  onSelectApplicant={openApplicantReview}
+                />
               )}
             </div>
           </div>
         </main>
       </div>
 
-      {/* --- DETAILED VIEW MODAL --- */}
-      {selectedApplicant && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-[2.5rem] max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="sticky top-0 bg-white border-b border-[#39B5A8]/10 p-8 flex items-center justify-between rounded-t-[2.5rem] z-10">
-              <div>
-                <h2 className="text-2xl font-bold text-[#041614]">{selectedApplicant.name}</h2>
-                <p className="text-sm text-gray-400 font-medium">{selectedApplicant.id}</p>
-              </div>
-              <button
-                onClick={() => setSelectedApplicant(null)}
-                className="p-2 rounded-xl hover:bg-[#F0F9F8] transition-colors"
-              >
-                <X className="w-6 h-6 text-[#1A5D56]" />
-              </button>
-            </div>
+      {selectedApplicant && !showApplicantRejectModal && (
+        <ApplicantReviewModal
+          applicant={selectedApplicant}
+          onApprove={() => handleApprove(selectedApplicant.id)}
+          onClose={() => setSelectedApplicant(null)}
+          onReject={() => {
+            setShowApplicantRejectModal(true);
+            setRejectionReason('');
+          }}
+        />
+      )}
 
-            <div className="p-8 space-y-8">
-              {/* Contact Information */}
-              <section>
-                <h3 className="text-lg font-bold text-[#041614] mb-4">Contact Information</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[#F0F9F8]">
-                      <Mail className="w-4 h-4 text-[#39B5A8]" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 font-medium">Email</p>
-                      <p className="font-semibold text-[#1A5D56]">{selectedApplicant.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[#F0F9F8]">
-                      <Phone className="w-4 h-4 text-[#39B5A8]" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 font-medium">Phone</p>
-                      <p className="font-semibold text-[#1A5D56]">{selectedApplicant.phone}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[#F0F9F8]">
-                      <Calendar className="w-4 h-4 text-[#39B5A8]" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 font-medium">Application Date</p>
-                      <p className="font-semibold text-[#1A5D56]">{new Date(selectedApplicant.applicationDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[#F0F9F8]">
-                      <MapPin className="w-4 h-4 text-[#39B5A8]" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 font-medium">Region</p>
-                      <p className="font-semibold text-[#1A5D56]">{selectedApplicant.region}</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Driver/Business Details */}
-              {selectedApplicant.type === 'driver' ? (
-                <section>
-                  <h3 className="text-lg font-bold text-[#041614] mb-4">Driver Details</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-[#F0F9F8]">
-                        <Car className="w-4 h-4 text-[#39B5A8]" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 font-medium">Vehicle Type</p>
-                        <p className="font-semibold text-[#1A5D56]">{selectedApplicant.vehicleType}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-[#F0F9F8]">
-                        <FileText className="w-4 h-4 text-[#39B5A8]" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 font-medium">Plate Number</p>
-                        <p className="font-semibold text-[#1A5D56]">{selectedApplicant.plateNumber}</p>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              ) : (
-                <section>
-                  <h3 className="text-lg font-bold text-[#041614] mb-4">Business Details</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-[#F0F9F8]">
-                        <Briefcase className="w-4 h-4 text-[#39B5A8]" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 font-medium">Business Name</p>
-                        <p className="font-semibold text-[#1A5D56]">{selectedApplicant.businessName}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-[#F0F9F8]">
-                        <FileText className="w-4 h-4 text-[#39B5A8]" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 font-medium">Business Type</p>
-                        <p className="font-semibold text-[#1A5D56]">{selectedApplicant.businessType}</p>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {/* Submitted Documents */}
-              <section>
-                <h3 className="text-lg font-bold text-[#041614] mb-1">Submitted Documents</h3>
-                {selectedApplicant.type === 'driver' && (
-                  <p className="mb-4 text-sm font-medium text-[#1A5D56]/65">
-                    Review the driver&apos;s license, government ID, and vehicle registration before activating the account.
-                  </p>
-                )}
-                <div className="space-y-3">
-                  {selectedApplicant.documents.map((doc, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-[#F0F9F8] rounded-xl hover:bg-[#39B5A8]/5 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-white">
-                          <FileText className="w-5 h-5 text-[#39B5A8]" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-[#041614]">{doc.name}</p>
-                          <p className="text-xs text-gray-400 font-medium">{doc.size} • Uploaded {new Date(doc.uploadDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button className="p-2 rounded-lg bg-white hover:bg-[#39B5A8]/10 transition-colors">
-                          <Eye className="w-4 h-4 text-[#39B5A8]" />
-                        </button>
-                        <button className="p-2 rounded-lg bg-white hover:bg-[#39B5A8]/10 transition-colors">
-                          <Download className="w-4 h-4 text-[#39B5A8]" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {selectedApplicant.type === 'driver' && (
-                <section className="p-4 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8]">
-                  <h4 className="font-bold text-[#041614] mb-3">Driver Eligibility Status</h4>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase border ${
-                      selectedApplicant.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                      selectedApplicant.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                      'bg-red-50 text-red-600 border-red-100'
-                    }`}>
-                      {selectedApplicant.status}
-                    </span>
-                    <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase border ${
-                      selectedApplicant.accountStatus === 'active'
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                        : 'bg-gray-50 text-gray-500 border-gray-100'
-                    }`}>
-                      Account {selectedApplicant.accountStatus ?? 'inactive'}
-                    </span>
-                    {selectedApplicant.accountStatus === 'active' && selectedApplicant.activatedDate && (
-                      <p className="text-xs font-bold text-emerald-600">
-                        Driver can accept jobs as of {formatDate(selectedApplicant.activatedDate, 'short')}.
-                      </p>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              {/* Action Buttons */}
-              {selectedApplicant.status === 'pending' && (
-                <div className="space-y-4 pt-4">
-                  <textarea
-                    value={rejectionReason}
-                    onChange={(event) => setRejectionReason(event.target.value)}
-                    placeholder="Written rejection reason required before rejecting"
-                    className="w-full min-h-24 resize-none rounded-2xl border border-[#39B5A8]/15 bg-[#F0F9F8]/60 px-5 py-4 font-semibold text-[#041614] outline-none placeholder:text-gray-400 focus:border-[#39B5A8]"
-                  />
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => handleApprove(selectedApplicant.id)}
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-500/20"
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                      {selectedApplicant.type === 'driver' ? 'Approve & Activate Driver' : 'Approve'}
-                    </button>
-                    <button
-                      onClick={() => handleReject(selectedApplicant.id)}
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-red-500/20"
-                    >
-                      <XCircle className="w-5 h-5" />
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {selectedApplicant && showApplicantRejectModal && (
+        <ApplicantRejectModal
+          applicant={selectedApplicant}
+          reason={rejectionReason}
+          onCancel={() => {
+            setShowApplicantRejectModal(false);
+            setRejectionReason('');
+          }}
+          onChangeReason={setRejectionReason}
+          onConfirm={() => handleReject(selectedApplicant.id)}
+        />
       )}
 
       {selectedDropOffApplication && !showDropOffRejectModal && (
@@ -970,7 +752,6 @@ export default function UserAcceptancePage() {
 
       {selectedDropOffApplication && showDropOffRejectModal && (
         <DropOffRejectModal
-          application={selectedDropOffApplication}
           reason={dropOffRejectionReason}
           onCancel={() => {
             setShowDropOffRejectModal(false);
@@ -992,6 +773,96 @@ function formatDate(date: string, format: 'short' | 'long') {
   });
 }
 
+function ApplicantsTable({
+  applicants,
+  onSelectApplicant,
+}: {
+  applicants: Applicant[];
+  onSelectApplicant: (applicant: Applicant) => void;
+}) {
+  return (
+    <>
+      <table className="w-full text-left">
+        <thead className="bg-[#F0F9F8]/50 border-b border-[#39B5A8]/5">
+          <tr>
+            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Application ID</th>
+            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Applicant</th>
+            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Date Applied</th>
+            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Region</th>
+            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest text-center">Documents</th>
+            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Status</th>
+            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest text-right">Review</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[#39B5A8]/5">
+          {applicants.map((applicant) => {
+            const primaryName = applicant.type === 'business' ? applicant.businessName || applicant.name : applicant.name;
+            const secondaryText =
+              applicant.type === 'business'
+                ? applicant.name
+                : [applicant.vehicleType, applicant.plateNumber].filter(Boolean).join(' · ');
+
+            return (
+              <tr key={applicant.id} className="hover:bg-[#F0F9F8]/30 transition-colors">
+                <td className="px-6 py-5 font-bold text-[#041614] text-sm">{applicant.id}</td>
+                <td className="px-6 py-5 min-w-[260px]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#39B5A8] to-[#1A5D56] rounded-xl flex items-center justify-center text-white font-bold text-sm">
+                      {primaryName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-bold text-[#041614]">{primaryName}</p>
+                      <p className="text-xs text-gray-400 font-medium">{secondaryText}</p>
+                      {applicant.status === 'rejected' && applicant.rejectionReason && (
+                        <p className="mt-1 max-w-[220px] truncate text-xs font-semibold text-red-500">
+                          Fix needed: {applicant.rejectionReason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-5 whitespace-nowrap">
+                  <p className="font-semibold text-[#1A5D56]">{formatDate(applicant.applicationDate, 'short')}</p>
+                </td>
+                <td className="px-6 py-5 min-w-[240px]">
+                  <p className="text-sm font-semibold text-[#1A5D56] flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#39B5A8]" />
+                    {applicant.region}
+                  </p>
+                </td>
+                <td className="px-6 py-5 text-center">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F0F9F8] text-[#39B5A8] rounded-full font-bold text-xs">
+                    <FileText className="w-3.5 h-3.5" />
+                    {applicant.documentCount}
+                  </span>
+                </td>
+                <td className="px-6 py-5">
+                  <AcceptanceStatusBadge status={applicant.status} />
+                </td>
+                <td className="px-6 py-5 text-right">
+                  <button
+                    onClick={() => onSelectApplicant(applicant)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#39B5A8] text-white rounded-xl hover:bg-[#2F9D91] transition-all text-xs font-bold uppercase tracking-wider"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Review
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {applicants.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-400 font-medium">No applications found</p>
+        </div>
+      )}
+    </>
+  );
+}
+
 function DropOffApplicationsTable({
   applications,
   onSelectApplication,
@@ -1005,11 +876,11 @@ function DropOffApplicationsTable({
         <thead className="bg-[#F0F9F8]/50 border-b border-[#39B5A8]/5">
           <tr>
             <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Application ID</th>
-            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Business Name</th>
+            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Applicant</th>
             <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Date Applied</th>
-            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Location</th>
+            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Region</th>
+            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest text-center">Documents</th>
             <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Status</th>
-            <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">Platform</th>
             <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest text-right">Review</th>
           </tr>
         </thead>
@@ -1042,11 +913,14 @@ function DropOffApplicationsTable({
                   {application.location}
                 </p>
               </td>
-              <td className="px-6 py-5">
-                <DropOffStatusBadge status={application.status} />
+              <td className="px-6 py-5 text-center">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F0F9F8] text-[#39B5A8] rounded-full font-bold text-xs">
+                  <FileText className="w-3.5 h-3.5" />
+                  {application.businessDocuments.length}
+                </span>
               </td>
               <td className="px-6 py-5">
-                <PlatformStatusBadge status={application.platformStatus} />
+                <AcceptanceStatusBadge status={application.status} />
               </td>
               <td className="px-6 py-5 text-right">
                 <button
@@ -1071,24 +945,11 @@ function DropOffApplicationsTable({
   );
 }
 
-function DropOffStatusBadge({ status }: { status: StatusType }) {
+function AcceptanceStatusBadge({ status }: { status: StatusType }) {
   const statusConfig = {
     pending: 'bg-amber-50 text-amber-600 border-amber-100',
     approved: 'bg-emerald-50 text-emerald-600 border-emerald-100',
     rejected: 'bg-red-50 text-red-600 border-red-100',
-  };
-
-  return (
-    <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase border ${statusConfig[status]}`}>
-      {status}
-    </span>
-  );
-}
-
-function PlatformStatusBadge({ status }: { status: DropOffApplication['platformStatus'] }) {
-  const statusConfig = {
-    active: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    inactive: 'bg-gray-50 text-gray-500 border-gray-100',
   };
 
   return (
@@ -1120,6 +981,134 @@ function DocumentVerificationBadge({ status }: { status: BusinessDocument['verif
     <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-2.5 py-1 rounded-full uppercase border ${statusConfig[status]}`}>
       {status === 'submitted' ? 'Submitted' : 'Needs Review'}
     </span>
+  );
+}
+
+function ApplicantReviewModal({
+  applicant,
+  onApprove,
+  onClose,
+  onReject,
+}: {
+  applicant: Applicant;
+  onApprove: () => void;
+  onClose: () => void;
+  onReject: () => void;
+}) {
+  const isDriver = applicant.type === 'driver';
+  const subtitle = isDriver ? 'Review Driver' : 'Review Business Owner';
+  const approvalLabel = isDriver ? 'Approve & Activate Driver' : 'Approve Business Owner';
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+      <div className="bg-white rounded-[2.5rem] max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="sticky top-0 bg-white border-b border-[#39B5A8]/10 p-8 flex items-center justify-between rounded-t-[2.5rem] z-10">
+          <div>
+            <h2 className="text-2xl font-bold text-[#041614]">{subtitle}</h2>
+            <p className="text-sm text-gray-400 font-medium">{applicant.id}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-[#F0F9F8] transition-colors">
+            <X className="w-6 h-6 text-[#1A5D56]" />
+          </button>
+        </div>
+
+        <div className="p-8 space-y-6">
+          <section>
+            <h3 className="text-lg font-bold text-[#041614] mb-4">Applicant Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <DropOffInfoItem icon={<User className="w-4 h-4" />} label={isDriver ? 'Driver Name' : 'Owner Name'} value={applicant.name} />
+              {!isDriver && (
+                <DropOffInfoItem icon={<Briefcase className="w-4 h-4" />} label="Business Name" value={applicant.businessName ?? 'Pending'} />
+              )}
+              <DropOffInfoItem icon={<Mail className="w-4 h-4" />} label="Email" value={applicant.email} />
+              <DropOffInfoItem icon={<Phone className="w-4 h-4" />} label="Phone" value={applicant.phone} />
+              <DropOffInfoItem icon={<MapPin className="w-4 h-4" />} label="Region" value={applicant.region} />
+              <DropOffInfoItem icon={<Calendar className="w-4 h-4" />} label="Date Applied" value={formatDate(applicant.applicationDate, 'long')} />
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-lg font-bold text-[#041614] mb-4">{isDriver ? 'Driver Details' : 'Business Details'}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {isDriver ? (
+                <>
+                  <DropOffInfoItem icon={<Car className="w-4 h-4" />} label="Vehicle Type" value={applicant.vehicleType ?? 'Pending'} />
+                  <DropOffInfoItem icon={<FileText className="w-4 h-4" />} label="Plate Number" value={applicant.plateNumber ?? 'Pending'} />
+                </>
+              ) : (
+                <>
+                  <DropOffInfoItem icon={<Building2 className="w-4 h-4" />} label="Business Type" value={applicant.businessType ?? 'Pending'} />
+                  <DropOffInfoItem icon={<FileText className="w-4 h-4" />} label="Documents Submitted" value={`${applicant.documentCount} files`} />
+                </>
+              )}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-lg font-bold text-[#041614] mb-4">Submitted Documents</h3>
+            <div className="space-y-3">
+              {applicant.documents.map((document) => (
+                <div key={`${applicant.id}-${document.name}`} className="flex items-center justify-between gap-4 p-4 bg-[#F0F9F8] rounded-xl hover:bg-[#39B5A8]/5 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-white">
+                      <FileText className="w-5 h-5 text-[#39B5A8]" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-[#041614] truncate">{document.name}</p>
+                      <p className="text-xs text-gray-400 font-medium">
+                        {document.size} - Uploaded {formatDate(document.uploadDate, 'short')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button type="button" className="p-2 rounded-lg bg-white hover:bg-[#39B5A8]/10 transition-colors" aria-label={`View ${document.name}`}>
+                      <Eye className="w-4 h-4 text-[#39B5A8]" />
+                    </button>
+                    <button type="button" className="p-2 rounded-lg bg-white hover:bg-[#39B5A8]/10 transition-colors" aria-label={`Download ${document.name}`}>
+                      <Download className="w-4 h-4 text-[#39B5A8]" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="p-4 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8]">
+            <h4 className="font-bold text-[#041614] mb-3">{isDriver ? 'Driver Eligibility Status' : 'Application Status'}</h4>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <AcceptanceStatusBadge status={applicant.status} />
+              </div>
+              {applicant.status === 'rejected' && applicant.rejectionReason && (
+                <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Applicant Resubmission Reason</p>
+                  <p className="mt-1 text-sm font-semibold text-red-700">{applicant.rejectionReason}</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {applicant.status === 'pending' && (
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <button
+                onClick={onApprove}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-500/20"
+              >
+                <CheckCircle className="w-5 h-5" />
+                {approvalLabel}
+              </button>
+              <button
+                onClick={onReject}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-red-500/20"
+              >
+                <XCircle className="w-5 h-5" />
+                Reject
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1204,13 +1193,7 @@ function DropOffReviewModal({
             <h4 className="font-bold text-[#041614] mb-3">Application Status</h4>
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
-                <DropOffStatusBadge status={application.status} />
-                <PlatformStatusBadge status={application.platformStatus} />
-                {application.platformStatus === 'active' && (
-                  <p className="text-xs font-bold text-emerald-600">
-                    Drop-off point is active on PakiShip{application.activatedDate ? ` as of ${formatDate(application.activatedDate, 'short')}` : ''}.
-                  </p>
-                )}
+                <AcceptanceStatusBadge status={application.status} />
               </div>
               {application.status === 'rejected' && application.rejectionReason && (
                 <div className="rounded-xl border border-red-100 bg-red-50 p-4">
@@ -1245,14 +1228,14 @@ function DropOffReviewModal({
   );
 }
 
-function DropOffRejectModal({
-  application,
+function ApplicantRejectModal({
+  applicant,
   reason,
   onCancel,
   onChangeReason,
   onConfirm,
 }: {
-  application: DropOffApplication;
+  applicant: Applicant;
   reason: string;
   onCancel: () => void;
   onChangeReason: (reason: string) => void;
@@ -1262,15 +1245,12 @@ function DropOffRejectModal({
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
       <div className="bg-white rounded-[2.5rem] max-w-md w-full shadow-2xl">
         <div className="p-8">
-          <div className="flex items-start gap-4 mb-6">
+          <div className="flex items-center gap-4 mb-6">
             <div className="p-3 bg-red-100 rounded-2xl">
               <AlertTriangle className="w-6 h-6 text-red-600" />
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-[#041614]">Reject Application</h2>
-              <p className="text-sm text-gray-400 font-medium mt-1">
-                Provide the reason {application.businessName} should see before resubmitting.
-              </p>
+              <h2 className="text-2xl font-bold leading-tight text-[#041614]">Reject Application</h2>
             </div>
             <button onClick={onCancel} className="p-2 rounded-xl hover:bg-[#F0F9F8] transition-colors">
               <X className="w-5 h-5 text-[#1A5D56]" />
@@ -1286,9 +1266,61 @@ function DropOffRejectModal({
             className="w-full bg-[#F0F9F8] border border-[#39B5A8]/10 rounded-xl px-4 py-3 text-[#041614] focus:border-[#39B5A8] outline-none transition-all text-sm font-medium resize-none"
             required
           />
-          <p className="mt-2 text-xs font-semibold text-gray-400">
-            This reason will be saved with the rejected application and shown as the fix needed before resubmission.
-          </p>
+
+          <div className="flex gap-3 pt-6">
+            <button onClick={onCancel} className="flex-1 px-6 py-3 bg-gray-100 text-[#1A5D56] rounded-xl font-bold hover:bg-gray-200 transition-all">
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={!reason.trim()}
+              className="flex-1 px-6 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Confirm Rejection
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DropOffRejectModal({
+  reason,
+  onCancel,
+  onChangeReason,
+  onConfirm,
+}: {
+  reason: string;
+  onCancel: () => void;
+  onChangeReason: (reason: string) => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+      <div className="bg-white rounded-[2.5rem] max-w-md w-full shadow-2xl">
+        <div className="p-8">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-red-100 rounded-2xl">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold leading-tight text-[#041614]">Reject Application</h2>
+            </div>
+            <button onClick={onCancel} className="p-2 rounded-xl hover:bg-[#F0F9F8] transition-colors">
+              <X className="w-5 h-5 text-[#1A5D56]" />
+            </button>
+          </div>
+
+          <label className="text-xs font-bold text-[#39B5A8] uppercase tracking-wider mb-2 block">Written Reason for Applicant *</label>
+          <textarea
+            value={reason}
+            onChange={(event) => onChangeReason(event.target.value)}
+            placeholder="Enter rejection reason"
+            rows={4}
+            className="w-full bg-[#F0F9F8] border border-[#39B5A8]/10 rounded-xl px-4 py-3 text-[#041614] focus:border-[#39B5A8] outline-none transition-all text-sm font-medium resize-none"
+            required
+          />
 
           <div className="flex gap-3 pt-6">
             <button onClick={onCancel} className="flex-1 px-6 py-3 bg-gray-100 text-[#1A5D56] rounded-xl font-bold hover:bg-gray-200 transition-all">

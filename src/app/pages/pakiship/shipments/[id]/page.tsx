@@ -21,7 +21,7 @@ interface ShipmentRecord {
   date: string;
 }
 
-// Sample data – replace with real API call in production
+// Sample data - replace with real API call in production
 const shipments: ShipmentRecord[] = [
   {
     id: 'PKS-2026-120',

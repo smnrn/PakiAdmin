@@ -46,6 +46,13 @@ export interface ResolutionNotification {
   outcome: LostParcelStatus;
 }
 
+export interface InternalCaseNote {
+  id: string;
+  author: string;
+  timestamp: string;
+  message: string;
+}
+
 export interface LostParcelCase {
   id: string;
   parcelId: string;
@@ -58,6 +65,7 @@ export interface LostParcelCase {
   statusHistory: InvestigationStatusUpdate[];
   refund?: RefundRecord;
   resolutionNotification?: ResolutionNotification;
+  internalNotes: InternalCaseNote[];
   assignedTeam: string;
   lastKnownLocation: string;
   lastKnownTimestamp: string;
@@ -78,6 +86,10 @@ export const LOST_PARCEL_CASES: LostParcelCase[] = [
     statusHistory: [
       { id: 'ISH-1021-1', status: 'open', timestamp: '2026-05-14T18:05:00', updatedBy: 'Support Desk', note: 'Customer reported parcel missing after missed delivery scan.' },
       { id: 'ISH-1021-2', status: 'investigating', timestamp: '2026-05-14T18:22:00', updatedBy: 'Incident Response', note: 'Assigned to incident team for hub scan verification.' },
+    ],
+    internalNotes: [
+      { id: 'ICN-1021-1', author: 'Incident Response', timestamp: '2026-05-14T18:28:00', message: 'Check Sampaloc sorting desk CCTV between 4:30 PM and 5:00 PM.' },
+      { id: 'ICN-1021-2', author: 'Dispatch Review', timestamp: '2026-05-14T18:47:00', message: 'Driver confirmed hub intake but no delivery handoff record was generated.' },
     ],
     assignedTeam: 'Incident Response',
     lastKnownLocation: 'PakiShip Sampaloc Sorting Desk',
@@ -109,6 +121,9 @@ export const LOST_PARCEL_CASES: LostParcelCase[] = [
       { id: 'ISH-1018-1', status: 'open', timestamp: '2026-05-13T17:18:00', updatedBy: 'Support Desk', note: 'Report created from missing receiving scan.' },
       { id: 'ISH-1018-2', status: 'investigating', timestamp: '2026-05-13T17:46:00', updatedBy: 'Dispatch Review', note: 'Rider and receiving point contacted for route confirmation.' },
     ],
+    internalNotes: [
+      { id: 'ICN-1018-1', author: 'Dispatch Review', timestamp: '2026-05-13T18:10:00', message: 'Receiving point asked to recheck parcels held after cutoff.' },
+    ],
     assignedTeam: 'Dispatch Review',
     lastKnownLocation: 'Espana Dispatch Bay',
     lastKnownTimestamp: '2026-05-13T15:15:00',
@@ -138,6 +153,9 @@ export const LOST_PARCEL_CASES: LostParcelCase[] = [
     statusHistory: [
       { id: 'ISH-1014-1', status: 'open', timestamp: '2026-05-12T16:20:00', updatedBy: 'Customer Support', note: 'Customer report logged with initial drop-off receipt.' },
     ],
+    internalNotes: [
+      { id: 'ICN-1014-1', author: 'Customer Support', timestamp: '2026-05-12T16:32:00', message: 'Customer can provide drop-off photo if needed.' },
+    ],
     assignedTeam: 'Customer Support',
     lastKnownLocation: 'UST Overpass Drop-Off Counter',
     lastKnownTimestamp: '2026-05-12T13:55:00',
@@ -164,6 +182,9 @@ export const LOST_PARCEL_CASES: LostParcelCase[] = [
     status: 'open',
     statusHistory: [
       { id: 'ISH-1009-1', status: 'open', timestamp: '2026-05-11T14:35:00', updatedBy: 'Hub Operations', note: 'Counter scan found without matching transfer scan.' },
+    ],
+    internalNotes: [
+      { id: 'ICN-1009-1', author: 'Hub Operations', timestamp: '2026-05-11T14:48:00', message: 'Ask Asturias counter to verify outgoing batch seal number.' },
     ],
     assignedTeam: 'Hub Operations',
     lastKnownLocation: 'Asturias Partner Counter',
@@ -192,6 +213,9 @@ export const LOST_PARCEL_CASES: LostParcelCase[] = [
     statusHistory: [
       { id: 'ISH-1006-1', status: 'open', timestamp: '2026-05-10T18:40:00', updatedBy: 'Support Desk', note: 'Customer reported parcel absent from expected delivery.' },
       { id: 'ISH-1006-2', status: 'investigating', timestamp: '2026-05-10T19:05:00', updatedBy: 'Dispatch Review', note: 'Transfer batch and rider log under review.' },
+    ],
+    internalNotes: [
+      { id: 'ICN-1006-1', author: 'Dispatch Review', timestamp: '2026-05-10T19:18:00', message: 'Transfer van manifest includes parcel ID but no receiving signature.' },
     ],
     assignedTeam: 'Dispatch Review',
     lastKnownLocation: 'Quiapo Route Van Transfer',
@@ -222,6 +246,9 @@ export const LOST_PARCEL_CASES: LostParcelCase[] = [
       { id: 'ISH-1002-1', status: 'open', timestamp: '2026-05-08T15:15:00', updatedBy: 'Support Desk', note: 'Missing parcel report created.' },
       { id: 'ISH-1002-2', status: 'investigating', timestamp: '2026-05-08T15:40:00', updatedBy: 'Claims Review', note: 'Counter and rider scans compared.' },
       { id: 'ISH-1002-3', status: 'found', timestamp: '2026-05-08T16:35:00', updatedBy: 'Claims Review', note: 'Parcel recovered at Recto receiving counter.' },
+    ],
+    internalNotes: [
+      { id: 'ICN-1002-1', author: 'Claims Review', timestamp: '2026-05-08T16:38:00', message: 'Recovered parcel matched customer description and tracking label.' },
     ],
     assignedTeam: 'Claims Review',
     lastKnownLocation: 'Recto Receiving Counter',
@@ -261,6 +288,10 @@ export const LOST_PARCEL_CASES: LostParcelCase[] = [
       issuedBy: 'Claims Review',
       note: 'Refund approved after failed recovery window.',
     },
+    internalNotes: [
+      { id: 'ICN-0998-1', author: 'Incident Response', timestamp: '2026-05-08T10:20:00', message: 'Recovery window expired after consolidation point review.' },
+      { id: 'ICN-0998-2', author: 'Claims Review', timestamp: '2026-05-08T11:08:00', message: 'Refund record attached to case after approval.' },
+    ],
     assignedTeam: 'Incident Response',
     lastKnownLocation: 'Santa Cruz Consolidation Point',
     lastKnownTimestamp: '2026-05-07T20:15:00',

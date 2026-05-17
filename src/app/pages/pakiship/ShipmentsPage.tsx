@@ -7,10 +7,12 @@ import {
   Download,
   Search,
   Truck,
+  MapPin,
   User,
   ChevronDown,
   Settings,
   LogOut,
+  ShieldAlert,
   X,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -270,14 +272,16 @@ export default function ShipmentsPage() {
       return;
     }
 
+    const targetStatus = newStatus as ShipmentRecord['status'];
+
     setShipments((prev) =>
       prev.map((shipment) =>
         shipment.id === selectedShipment.id
-          ? { ...shipment, status: newStatus as ShipmentRecord['status'] }
+          ? { ...shipment, status: targetStatus, eta: getShipmentEtaAfterOverride(targetStatus, shipment.eta) }
           : shipment,
       ),
     );
-    toast.success(`Shipment status updated to ${newStatus}`);
+    toast.success(targetStatus === 'Cancelled' ? 'Shipment cancelled' : `Shipment status updated to ${targetStatus}`);
     setIsDialogOpen(false);
   };
 
@@ -339,7 +343,7 @@ export default function ShipmentsPage() {
 
       return matchesSearch && matchesStatus && matchesDriver && matchesDateRange;
     });
-  }, [bookingSearchQuery, driverFilter, endDateFilter, startDateFilter, statusFilter]);
+  }, [bookingSearchQuery, driverFilter, endDateFilter, shipments, startDateFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredShipments.length / shipmentsPerPage));
 
@@ -451,6 +455,13 @@ export default function ShipmentsPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/pakiship/tracking')}
+                className="rounded-xl border-[#39B5A8]/15 bg-white font-bold text-[#1A5D56] hover:bg-[#F0F9F8]"
+              >
+                <MapPin className="mr-2 h-4 w-4 text-[#39B5A8]" /> Live Map
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => navigate('/pakiship/shipments/lost-parcels')}
@@ -664,7 +675,9 @@ export default function ShipmentsPage() {
                                   ? 'border-blue-100 bg-blue-50 text-blue-600'
                                   : shipment.status === 'Delivered'
                                     ? 'border-emerald-100 bg-emerald-50 text-emerald-600'
-                                    : 'border-amber-100 bg-amber-50 text-amber-600'
+                                    : shipment.status === 'Cancelled'
+                                      ? 'border-red-100 bg-red-50 text-red-600'
+                                      : 'border-amber-100 bg-amber-50 text-amber-600'
                               }`}
                             >
                               {shipment.status}
@@ -679,7 +692,8 @@ export default function ShipmentsPage() {
                                 openStatusDialog(shipment);
                               }}
                             >
-                              Update
+                              <ShieldAlert className="mr-2 h-3.5 w-3.5" />
+                              Override
                             </Button>
                           </td>
                         </tr>
@@ -760,10 +774,19 @@ export default function ShipmentsPage() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Update Shipment Status</DialogTitle>
-                <DialogDescription>Provide a new status and a mandatory reason.</DialogDescription>
+                <DialogTitle>Override Shipment Status</DialogTitle>
+                <DialogDescription>
+                  Change the shipment status or cancel it with a required reason.
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                {selectedShipment && (
+                  <div className="rounded-2xl border border-[#39B5A8]/10 bg-[#F0F9F8] p-4">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#39B5A8]">Shipment</p>
+                    <p className="mt-1 text-sm font-black text-[#041614]">{selectedShipment.id}</p>
+                    <p className="text-xs font-semibold text-[#1A5D56]/65">{selectedShipment.store}</p>
+                  </div>
+                )}
                 <Select value={newStatus} onValueChange={setNewStatus}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
@@ -776,14 +799,20 @@ export default function ShipmentsPage() {
                   </SelectContent>
                 </Select>
                 <Textarea
-                  placeholder="Reason for status change"
+                  placeholder="Reason for override or cancellation"
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
                   className="resize-none"
                 />
               </div>
               <DialogFooter>
-                <Button onClick={handleStatusUpdate}>Submit</Button>
+                <Button
+                  onClick={handleStatusUpdate}
+                  disabled={!reason.trim()}
+                  className={newStatus === 'Cancelled' ? 'bg-red-500 text-white hover:bg-red-600' : ''}
+                >
+                  {newStatus === 'Cancelled' ? 'Cancel Shipment' : 'Apply Override'}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -791,4 +820,20 @@ export default function ShipmentsPage() {
       </div>
     </div>
   );
+}
+
+function getShipmentEtaAfterOverride(status: ShipmentRecord['status'], currentEta: string) {
+  if (status === 'Delivered') {
+    return 'Delivered';
+  }
+
+  if (status === 'Cancelled') {
+    return 'Cancelled';
+  }
+
+  if (status === 'Pending') {
+    return 'N/A';
+  }
+
+  return currentEta === 'Delivered' || currentEta === 'Cancelled' || currentEta === 'N/A' ? '15 mins' : currentEta;
 }
