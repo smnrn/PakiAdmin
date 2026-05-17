@@ -22,6 +22,8 @@ import {
   AlertTriangle,
   Filter,
   Navigation,
+  Star,
+  Trophy,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
@@ -31,6 +33,8 @@ import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type AnalyticsRange = 'Today' | 'Last 7 Days' | 'Last 30 Days' | 'Year to Date';
 type RevenueBreakdown = 'Week' | 'Month';
+type ShipmentVolumeView = 'Daily' | 'Weekly';
+type DeliveryTimeView = 'Route' | 'Region';
 
 interface AnalyticsPoint {
   month: string;
@@ -52,8 +56,12 @@ export default function AnalyticsPage() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [dateRange, setDateRange] = useState<AnalyticsRange>('Year to Date');
   const [revenueBreakdown, setRevenueBreakdown] = useState<RevenueBreakdown>('Week');
+  const [shipmentVolumeView, setShipmentVolumeView] = useState<ShipmentVolumeView>('Daily');
+  const [deliveryTimeView, setDeliveryTimeView] = useState<DeliveryTimeView>('Route');
   const [customStartDate, setCustomStartDate] = useState('2026-05-01');
   const [customEndDate, setCustomEndDate] = useState('2026-05-15');
+  const [appliedStartDate, setAppliedStartDate] = useState('2026-05-01');
+  const [appliedEndDate, setAppliedEndDate] = useState('2026-05-15');
 
   const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
@@ -150,7 +158,7 @@ export default function AnalyticsPage() {
     { route: 'P. Campa', to: 'Lerma Street', trips: 210, revenue: '₱52K', percentage: 40 },
   ];
 
-  const shipmentVolume = [
+  const dailyShipmentVolume = [
     { label: 'Mon', value: 320 },
     { label: 'Tue', value: 410 },
     { label: 'Wed', value: 385 },
@@ -159,6 +167,16 @@ export default function AnalyticsPage() {
     { label: 'Sat', value: 455 },
     { label: 'Sun', value: 300 },
   ];
+  const weeklyShipmentVolume = [
+    { label: 'W1', value: 2180 },
+    { label: 'W2', value: 2540 },
+    { label: 'W3', value: 2895 },
+    { label: 'W4', value: 2470 },
+  ];
+  const activeShipmentVolume = shipmentVolumeView === 'Daily' ? dailyShipmentVolume : weeklyShipmentVolume;
+  const shipmentVolumeTotal = activeShipmentVolume.reduce((total, item) => total + item.value, 0);
+  const shipmentVolumeAverage = Math.round(shipmentVolumeTotal / activeShipmentVolume.length);
+  const shipmentVolumePeak = activeShipmentVolume.reduce((peak, item) => (item.value > peak.value ? item : peak), activeShipmentVolume[0]);
 
   const revenueTrend =
     revenueBreakdown === 'Week'
@@ -175,6 +193,10 @@ export default function AnalyticsPage() {
           { label: 'Apr', value: 15800000 },
           { label: 'May', value: 16400000 },
         ];
+  const revenueTrendTotal = revenueTrend.reduce((total, item) => total + item.value, 0);
+  const revenueTrendAverage = Math.round(revenueTrendTotal / revenueTrend.length);
+  const revenueTrendPeak = revenueTrend.reduce((peak, item) => (item.value > peak.value ? item : peak), revenueTrend[0]);
+  const revenueTrendGrowth = Math.round(((revenueTrend[revenueTrend.length - 1].value - revenueTrend[0].value) / revenueTrend[0].value) * 100);
 
   const lostParcelRate = [
     { label: 'W1', value: 3.4 },
@@ -182,28 +204,95 @@ export default function AnalyticsPage() {
     { label: 'W3', value: 2.1 },
     { label: 'W4', value: 1.8 },
   ];
+  const lostParcelChange = Number((lostParcelRate[lostParcelRate.length - 1].value - lostParcelRate[0].value).toFixed(1));
+  const lostParcelAverage = Number((lostParcelRate.reduce((total, item) => total + item.value, 0) / lostParcelRate.length).toFixed(1));
 
   const deliveryTimeByRoute = [
     { route: 'Dapitan - P. Noval', minutes: 31 },
     { route: 'Espana - Lacson', minutes: 46 },
     { route: 'UST - Lerma', minutes: 28 },
     { route: 'Tayuman - Quiapo', minutes: 39 },
+    { route: 'Recto - Divisoria', minutes: 43 },
+    { route: 'Cubao - Katipunan', minutes: 52 },
+    { route: 'Makati - BGC', minutes: 34 },
+    { route: 'Pasig - Ortigas', minutes: 41 },
+    { route: 'Malate - Ermita', minutes: 29 },
+    { route: 'San Juan - Mandaluyong', minutes: 37 },
   ];
+  const deliveryTimeByRegion = [
+    { route: 'Metro Manila', minutes: 38 },
+    { route: 'Central Luzon', minutes: 54 },
+    { route: 'CALABARZON', minutes: 61 },
+    { route: 'Central Visayas', minutes: 47 },
+    { route: 'Western Visayas', minutes: 58 },
+    { route: 'Davao Region', minutes: 64 },
+    { route: 'Northern Mindanao', minutes: 56 },
+    { route: 'Ilocos Region', minutes: 49 },
+  ];
+  const activeDeliveryTimes = deliveryTimeView === 'Route' ? deliveryTimeByRoute : deliveryTimeByRegion;
+  const averageDeliveryMinutes = Math.round(activeDeliveryTimes.reduce((total, item) => total + item.minutes, 0) / activeDeliveryTimes.length);
+  const slowestDeliverySegment = activeDeliveryTimes.reduce((slowest, item) => (item.minutes > slowest.minutes ? item : slowest), activeDeliveryTimes[0]);
 
   const driverLeaderboard = [
-    { name: 'Arnel Cruz', completion: '98%', rating: '4.9' },
-    { name: 'Ramon Lee', completion: '94%', rating: '4.7' },
-    { name: 'Mika Santos', completion: '86%', rating: '4.3' },
+    { name: 'Arnel Cruz', completionRate: 98, rating: 4.9, deliveries: 186 },
+    { name: 'Ramon Lee', completionRate: 94, rating: 4.7, deliveries: 171 },
+    { name: 'Mika Santos', completionRate: 86, rating: 4.3, deliveries: 142 },
+    { name: 'Leo Castillo', completionRate: 82, rating: 4.1, deliveries: 128 },
+    { name: 'Daniel Torres', completionRate: 74, rating: 3.8, deliveries: 116 },
   ];
+  const rankedDrivers = useMemo(
+    () =>
+      [...driverLeaderboard]
+        .map((driver) => ({
+          ...driver,
+          score: Math.round(driver.completionRate * 0.7 + (driver.rating / 5) * 100 * 0.3),
+        }))
+        .sort((a, b) => b.score - a.score),
+    [driverLeaderboard],
+  );
+
+  const reportPeriodLabel = `${formatDateLabel(appliedStartDate)} - ${formatDateLabel(appliedEndDate)}`;
+  const reportDayCount = getDateRangeDays(appliedStartDate, appliedEndDate);
+  const isCustomRangeValid = customStartDate.length > 0 && customEndDate.length > 0 && customStartDate <= customEndDate;
+
+  const handleApplyCustomRange = () => {
+    if (!isCustomRangeValid) {
+      alert('Select a valid start and end date.');
+      return;
+    }
+
+    setAppliedStartDate(customStartDate);
+    setAppliedEndDate(customEndDate);
+  };
 
   const handleExport = (format: 'csv' | 'pdf' = 'csv') => {
-    const headers = ["Period", "Revenue (PHP)"];
-    const rows = activeData.chartData.map((dataPoint) => [dataPoint.month, dataPoint.revenue]);
-    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map((entry) => entry.join(",")).join("\n");
+    const rows = [
+      ['Report Period', reportPeriodLabel],
+      ['Report Days', reportDayCount],
+      [],
+      ['Section', 'Metric', 'Period/Name', 'Value'],
+      ['Summary', 'Total Revenue', reportPeriodLabel, activeData.revenue],
+      ['Summary', 'Parcels Delivered', reportPeriodLabel, activeData.delivered],
+      ['Summary', 'Parcels Pending', reportPeriodLabel, activeData.pending],
+      ['Summary', 'Parcels Cancelled', reportPeriodLabel, activeData.cancelled],
+      ['Summary', 'Open Lost Parcel Reports', reportPeriodLabel, activeData.lostReports],
+      ...activeShipmentVolume.map((item) => ['Shipment Volume', shipmentVolumeView, item.label, item.value]),
+      ...revenueTrend.map((item) => ['Revenue Trend', revenueBreakdown, item.label, item.value]),
+      ...lostParcelRate.map((item) => ['Lost Parcel Rate', 'Weekly', item.label, `${item.value}%`]),
+      ...activeDeliveryTimes.map((item) => ['Average Delivery Time', deliveryTimeView, item.route, `${item.minutes} mins`]),
+      ...rankedDrivers.map((driver, index) => ['Driver Leaderboard', `Rank ${index + 1}`, driver.name, `${driver.completionRate}% completion rate, ${driver.rating.toFixed(1)} rating`]),
+    ];
+
+    if (format === 'pdf') {
+      openPrintableReport(rows, reportPeriodLabel);
+      return;
+    }
+
+    const csvContent = `data:text/csv;charset=utf-8,${rows.map((row) => row.map(escapeCsvCell).join(',')).join('\n')}`;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `PakiShip_${customStartDate}_to_${customEndDate}_Report.${format}`);
+    link.setAttribute("download", `PakiShip_${appliedStartDate}_to_${appliedEndDate}_Report.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -308,94 +397,88 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-8">
-            <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
-              <CardHeader className="p-10 pb-2">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <Card className="overflow-hidden rounded-[3rem] border-none bg-white shadow-sm">
+              <CardHeader className="p-10">
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                   <div>
                     <CardTitle className="text-2xl font-black text-[#041614]">Custom Performance Report</CardTitle>
-                    <p className="text-sm text-gray-400 mt-1 font-medium">Apply a custom date range and export the report as CSV or PDF.</p>
+                    <p className="mt-1 text-sm font-medium text-gray-400">Apply a custom date range across analytics charts and export the report.</p>
+                    <div className="mt-5 inline-flex rounded-full border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39B5A8]">
+                      {reportPeriodLabel} · {reportDayCount} days
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <input type="date" value={customStartDate} onChange={(event) => setCustomStartDate(event.target.value)} className="h-11 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 text-sm font-bold text-[#1A5D56] outline-none" />
-                    <input type="date" value={customEndDate} onChange={(event) => setCustomEndDate(event.target.value)} className="h-11 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 text-sm font-bold text-[#1A5D56] outline-none" />
-                    <Button onClick={() => handleExport('csv')} className="rounded-xl bg-[#39B5A8] text-white hover:bg-[#2F9D91]">
-                      <Download className="w-4 h-4 mr-2" /> CSV
-                    </Button>
-                    <Button onClick={() => handleExport('pdf')} variant="outline" className="rounded-xl border-[#39B5A8]/20 bg-white text-[#1A5D56]">
-                      <Download className="w-4 h-4 mr-2" /> PDF
-                    </Button>
+
+                  <div className="rounded-[2rem] border border-[#39B5A8]/10 bg-[#F0F9F8]/70 p-4">
+                    <div className="grid gap-3 md:grid-cols-[repeat(2,170px)_auto]">
+                      <input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(event) => setCustomStartDate(event.target.value)}
+                        className="h-11 rounded-xl border border-[#39B5A8]/10 bg-white px-4 text-sm font-bold text-[#1A5D56] outline-none"
+                      />
+                      <input
+                        type="date"
+                        value={customEndDate}
+                        onChange={(event) => setCustomEndDate(event.target.value)}
+                        className="h-11 rounded-xl border border-[#39B5A8]/10 bg-white px-4 text-sm font-bold text-[#1A5D56] outline-none"
+                      />
+                      <Button
+                        onClick={handleApplyCustomRange}
+                        disabled={!isCustomRangeValid}
+                        variant="outline"
+                        className="h-11 rounded-xl border-[#39B5A8]/20 bg-white px-5 font-bold text-[#1A5D56] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <Button onClick={() => handleExport('csv')} className="h-11 rounded-xl bg-[#39B5A8] font-bold text-white hover:bg-[#2F9D91]">
+                        <Download className="mr-2 h-4 w-4" /> Export CSV
+                      </Button>
+                      <Button onClick={() => handleExport('pdf')} variant="outline" className="h-11 rounded-xl border-[#39B5A8]/20 bg-white font-bold text-[#1A5D56]">
+                        <Download className="mr-2 h-4 w-4" /> Export PDF
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
             </Card>
 
             <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
-              <MiniBarChart title="Shipment Volume" subtitle="Daily and weekly shipment demand patterns" data={shipmentVolume} />
+              <ShipmentVolumeChart
+                average={shipmentVolumeAverage}
+                data={activeShipmentVolume}
+                peak={shipmentVolumePeak}
+                total={shipmentVolumeTotal}
+                view={shipmentVolumeView}
+                onViewChange={setShipmentVolumeView}
+              />
 
-              <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
-                <CardHeader className="p-10 pb-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-2xl font-black text-[#041614]">Revenue Trend</CardTitle>
-                      <p className="text-sm text-gray-400 mt-1 font-medium">Broken down by week or month</p>
-                    </div>
-                    <div className="flex rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] p-1">
-                      {(['Week', 'Month'] as const).map((breakdown) => (
-                        <button
-                          key={breakdown}
-                          onClick={() => setRevenueBreakdown(breakdown)}
-                          className={`rounded-lg px-4 py-2 text-xs font-black ${revenueBreakdown === breakdown ? 'bg-[#39B5A8] text-white' : 'text-[#1A5D56]'}`}
-                        >
-                          {breakdown}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-10">
-                  <SimpleBars data={revenueTrend} valuePrefix="₱" />
-                </CardContent>
-              </Card>
+              <RevenueTrendChart
+                average={revenueTrendAverage}
+                breakdown={revenueBreakdown}
+                data={revenueTrend}
+                growth={revenueTrendGrowth}
+                onBreakdownChange={setRevenueBreakdown}
+                peak={revenueTrendPeak}
+                total={revenueTrendTotal}
+              />
             </div>
 
-            <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
-              <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm">
-                <CardHeader className="p-8 pb-4">
-                  <CardTitle className="text-xl font-black text-[#041614]">Driver Leaderboard</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 px-8 pb-8">
-                  {driverLeaderboard.map((driver, index) => (
-                    <div key={driver.name} className="flex items-center justify-between rounded-2xl bg-[#F0F9F8] p-4">
-                      <div>
-                        <p className="text-sm font-black text-[#041614]">{index + 1}. {driver.name}</p>
-                        <p className="text-xs font-bold text-[#39B5A8]">{driver.completion} completion</p>
-                      </div>
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#1A5D56]">{driver.rating}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+              <DriverLeaderboardPanel drivers={rankedDrivers} />
 
-              <MiniBarChart title="Lost Parcel Rate" subtitle="Loss incidents over time" data={lostParcelRate} suffix="%" />
+              <div className="grid gap-8">
+                <LostParcelRateChart average={lostParcelAverage} change={lostParcelChange} data={lostParcelRate} />
 
-              <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm">
-                <CardHeader className="p-8 pb-4">
-                  <CardTitle className="text-xl font-black text-[#041614]">Average Delivery Time</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 px-8 pb-8">
-                  {deliveryTimeByRoute.map((route) => (
-                    <div key={route.route}>
-                      <div className="flex items-center justify-between text-xs font-black">
-                        <span className="text-[#041614]">{route.route}</span>
-                        <span className="text-[#39B5A8]">{route.minutes} mins</span>
-                      </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#F0F9F8]">
-                        <div className="h-full rounded-full bg-[#39B5A8]" style={{ width: `${Math.min(100, route.minutes * 2)}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+                <DeliveryTimeChart
+                  average={averageDeliveryMinutes}
+                  data={activeDeliveryTimes}
+                  slowest={slowestDeliverySegment}
+                  view={deliveryTimeView}
+                  onViewChange={setDeliveryTimeView}
+                />
+              </div>
             </div>
 
             <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
@@ -594,6 +677,579 @@ function SimpleBars({ data, suffix = '', valuePrefix = '' }: { data: ChartDatum[
           <span className="text-[10px] font-black uppercase tracking-wider text-[#1A5D56]/60">{item.label}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ShipmentVolumeChart({
+  average,
+  data,
+  onViewChange,
+  peak,
+  total,
+  view,
+}: {
+  average: number;
+  data: ChartDatum[];
+  onViewChange: (view: ShipmentVolumeView) => void;
+  peak: ChartDatum;
+  total: number;
+  view: ShipmentVolumeView;
+}) {
+  const maxValue = Math.max(...data.map((item) => item.value));
+
+  return (
+    <Card className="overflow-hidden rounded-[3rem] border-none bg-white shadow-sm">
+      <CardHeader className="p-8 pb-0">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <CardTitle className="text-2xl font-black text-[#041614]">Shipment Volume</CardTitle>
+            <p className="mt-1 text-sm font-medium text-gray-400">Daily and weekly demand patterns over time</p>
+          </div>
+          <div className="flex rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] p-1">
+            {(['Daily', 'Weekly'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onViewChange(option)}
+                className={`rounded-lg px-4 py-2 text-xs font-black transition-colors ${
+                  view === option ? 'bg-[#39B5A8] text-white' : 'text-[#1A5D56] hover:bg-white'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-8">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_155px]">
+          <div className="relative h-56 rounded-2xl border border-[#39B5A8]/10 bg-[#F0F9F8]/60 px-5 pb-5 pt-8">
+            <div className="absolute inset-x-5 top-1/4 border-t border-dashed border-[#39B5A8]/15" />
+            <div className="absolute inset-x-5 top-1/2 border-t border-dashed border-[#39B5A8]/15" />
+            <div className="absolute inset-x-5 top-3/4 border-t border-dashed border-[#39B5A8]/15" />
+            <div className="relative z-10 flex h-full items-end gap-3">
+              {data.map((item) => (
+                <div key={item.label} className="group flex h-full flex-1 flex-col justify-end gap-3">
+                  <div className="relative flex flex-1 items-end">
+                    <span className="absolute -top-8 left-1/2 hidden -translate-x-1/2 rounded-lg border border-[#39B5A8]/10 bg-white px-2 py-1 text-[10px] font-black text-[#1A5D56] shadow-sm group-hover:block">
+                      {item.value.toLocaleString()}
+                    </span>
+                    <div
+                      className="w-full rounded-t-2xl bg-gradient-to-t from-[#39B5A8] to-[#50E3C2] shadow-lg shadow-[#39B5A8]/10 transition-all duration-500 group-hover:from-[#1A5D56] group-hover:to-[#39B5A8]"
+                      style={{ height: `${Math.max(14, (item.value / maxValue) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-center text-[10px] font-black uppercase tracking-[0.14em] text-[#1A5D56]/60">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <VolumeStat label="Total" value={total.toLocaleString()} />
+            <VolumeStat label="Average" value={average.toLocaleString()} />
+            <VolumeStat label="Peak" value={`${peak.label} · ${peak.value.toLocaleString()}`} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function VolumeStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#39B5A8]/10 bg-[#F0F9F8] p-4">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#39B5A8]">{label}</p>
+      <p className="mt-2 text-lg font-black text-[#041614]">{value}</p>
+    </div>
+  );
+}
+
+function RevenueTrendChart({
+  average,
+  breakdown,
+  data,
+  growth,
+  onBreakdownChange,
+  peak,
+  total,
+}: {
+  average: number;
+  breakdown: RevenueBreakdown;
+  data: ChartDatum[];
+  growth: number;
+  onBreakdownChange: (breakdown: RevenueBreakdown) => void;
+  peak: ChartDatum;
+  total: number;
+}) {
+  const maxValue = Math.max(...data.map((item) => item.value));
+  const minValue = Math.min(...data.map((item) => item.value));
+  const range = Math.max(1, maxValue - minValue);
+  const points = data.map((item, index) => {
+    const x = data.length === 1 ? 50 : (index / (data.length - 1)) * 100;
+    const y = 18 + ((maxValue - item.value) / range) * 58;
+
+    return { ...item, x, y };
+  });
+  const linePoints = points.map((point) => `${point.x},${point.y}`).join(' ');
+  const areaPoints = `0,84 ${linePoints} 100,84`;
+  const yAxisTicks = [
+    maxValue,
+    Math.round((maxValue + minValue) / 2),
+    minValue,
+  ];
+
+  return (
+    <Card className="overflow-hidden rounded-[3rem] border-none bg-white shadow-sm">
+      <CardHeader className="p-8 pb-0">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <CardTitle className="text-2xl font-black text-[#041614]">Revenue Trend</CardTitle>
+            <p className="mt-1 text-sm font-medium text-gray-400">Financial performance by week or month</p>
+          </div>
+          <div className="flex rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] p-1">
+            {(['Week', 'Month'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onBreakdownChange(option)}
+                className={`rounded-lg px-4 py-2 text-xs font-black transition-colors ${
+                  breakdown === option ? 'bg-[#39B5A8] text-white' : 'text-[#1A5D56] hover:bg-white'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-8">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_155px]">
+          <div className="rounded-2xl border border-[#39B5A8]/10 bg-white p-4">
+            <div className="grid grid-cols-[50px_minmax(0,1fr)] gap-3">
+              <div className="relative h-52 pb-7">
+                {yAxisTicks.map((tick) => {
+                  const y = 18 + ((maxValue - tick) / range) * 58;
+
+                  return (
+                    <span
+                      key={tick}
+                      className="absolute right-0 -translate-y-1/2 text-[10px] font-bold text-[#1A5D56]/50"
+                      style={{ top: `${y}%` }}
+                    >
+                      {formatRevenue(tick)}
+                    </span>
+                  );
+                })}
+              </div>
+
+              <div className="relative h-52 pb-7">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+                  {yAxisTicks.map((tick) => {
+                    const y = 18 + ((maxValue - tick) / range) * 58;
+
+                    return <line key={tick} x1="0" x2="100" y1={y} y2={y} stroke="#39B5A8" strokeOpacity="0.14" strokeDasharray="4 6" />;
+                  })}
+                  <polygon points={areaPoints} fill="#39B5A8" opacity="0.08" />
+                  <polyline points={linePoints} fill="none" stroke="#39B5A8" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+
+                {points.map((point) => (
+                  <div
+                    key={`${point.label}-revenue-point`}
+                    className="group absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#39B5A8] shadow-sm"
+                    style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                  >
+                    <span className="absolute left-1/2 top-[-2.25rem] hidden -translate-x-1/2 rounded-lg border border-[#39B5A8]/10 bg-white px-2 py-1 text-[10px] font-black text-[#1A5D56] shadow-sm group-hover:block">
+                      {formatRevenue(point.value)}
+                    </span>
+                  </div>
+                ))}
+
+                <div className="absolute inset-x-0 bottom-0 flex justify-between text-[10px] font-black uppercase tracking-[0.12em] text-[#1A5D56]/50">
+                  {points.map((point) => (
+                    <span key={point.label}>{point.label}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <VolumeStat label="Gross" value={formatRevenue(total)} />
+            <VolumeStat label="Average" value={formatRevenue(average)} />
+            <VolumeStat label="Growth" value={`${growth >= 0 ? '+' : ''}${growth}%`} />
+            <VolumeStat label="Peak" value={`${peak.label} · ${formatRevenue(peak.value)}`} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatRevenue(value: number) {
+  if (value >= 1000000) {
+    return `₱${(value / 1000000).toFixed(1)}M`;
+  }
+
+  return `₱${Math.round(value / 1000)}K`;
+}
+
+function formatDateLabel(value: string) {
+  return new Intl.DateTimeFormat('en-PH', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(`${value}T00:00:00`));
+}
+
+function getDateRangeDays(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const difference = end.getTime() - start.getTime();
+
+  return Math.max(1, Math.round(difference / 86400000) + 1);
+}
+
+function escapeCsvCell(value: string | number | undefined) {
+  const text = String(value ?? '');
+
+  if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+}
+
+function openPrintableReport(rows: Array<Array<string | number>>, periodLabel: string) {
+  const printableWindow = window.open('', '_blank', 'width=960,height=720');
+  if (!printableWindow) {
+    alert('Allow pop-ups to export the PDF report.');
+    return;
+  }
+
+  const tableRows = rows
+    .filter((row) => row.length > 0)
+    .map(
+      (row) =>
+        `<tr>${row
+          .map((cell) => `<td>${String(cell).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>`)
+          .join('')}</tr>`,
+    )
+    .join('');
+
+  printableWindow.document.write(`
+    <html>
+      <head>
+        <title>PakiShip Analytics Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #041614; padding: 32px; }
+          h1 { margin: 0; font-size: 24px; }
+          p { margin: 8px 0 24px; color: #1A5D56; }
+          table { border-collapse: collapse; width: 100%; font-size: 12px; }
+          td { border: 1px solid #d7efec; padding: 10px; }
+          tr:nth-child(even) { background: #F0F9F8; }
+          @media print { body { padding: 16px; } }
+        </style>
+      </head>
+      <body>
+        <h1>PakiShip Analytics Report</h1>
+        <p>${periodLabel}</p>
+        <table>${tableRows}</table>
+        <script>window.onload = () => window.print();</script>
+      </body>
+    </html>
+  `);
+  printableWindow.document.close();
+}
+
+interface RankedDriver {
+  completionRate: number;
+  deliveries: number;
+  name: string;
+  rating: number;
+  score: number;
+}
+
+function DriverLeaderboardPanel({ drivers }: { drivers: RankedDriver[] }) {
+  const topDriver = drivers[0];
+
+  return (
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-[2.5rem] border-[#39B5A8]/10 bg-white shadow-sm">
+      <CardHeader className="shrink-0 p-8 pb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-xl font-black text-[#041614]">Driver Leaderboard</CardTitle>
+            <p className="mt-1 text-sm font-medium text-gray-400">Ranked by completion rate and customer rating</p>
+          </div>
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F0F9F8] text-[#39B5A8]">
+            <Trophy className="h-5 w-5" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col px-8 pb-8">
+        <div className="rounded-[2rem] border border-[#39B5A8]/10 bg-[#F0F9F8] p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#39B5A8]">Top Performer</p>
+              <p className="mt-2 text-lg font-black text-[#041614]">{topDriver.name}</p>
+              <p className="mt-1 text-xs font-bold text-[#1A5D56]/60">{topDriver.deliveries} completed deliveries</p>
+            </div>
+            <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-600">
+              {topDriver.score} score
+            </span>
+          </div>
+        </div>
+
+        <div className="custom-scrollbar mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-2">
+          {drivers.map((driver, index) => (
+            <div key={driver.name} className="rounded-2xl border border-[#39B5A8]/10 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black ${getRankTone(index)}`}>
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-black text-[#041614]">{driver.name}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-bold text-[#1A5D56]/60">
+                      <span>{driver.completionRate}% completion</span>
+                      <span className="flex items-center gap-1 text-[#39B5A8]">
+                        <Star className="h-3 w-3 fill-[#39B5A8]" />
+                        {driver.rating.toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <PerformancePill completionRate={driver.completionRate} />
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#F0F9F8]">
+                <div className="h-full rounded-full bg-[#39B5A8]" style={{ width: `${driver.score}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PerformancePill({ completionRate }: { completionRate: number }) {
+  if (completionRate >= 90) {
+    return <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-600">Strong</span>;
+  }
+
+  if (completionRate >= 80) {
+    return <span className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-600">Needs Review</span>;
+  }
+
+  return <span className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-red-600">Underperforming</span>;
+}
+
+function getRankTone(index: number) {
+  if (index === 0) {
+    return 'bg-[#39B5A8] text-white';
+  }
+
+  if (index === 1) {
+    return 'bg-[#F0F9F8] text-[#39B5A8]';
+  }
+
+  return 'bg-gray-50 text-[#1A5D56]/70';
+}
+
+function LostParcelRateChart({ average, change, data }: { average: number; change: number; data: ChartDatum[] }) {
+  const maxValue = Math.max(...data.map((item) => item.value));
+  const minValue = Math.min(...data.map((item) => item.value));
+  const range = Math.max(1, maxValue - minValue);
+  const points = data.map((item, index) => {
+    const x = data.length === 1 ? 50 : (index / (data.length - 1)) * 100;
+    const y = 18 + ((maxValue - item.value) / range) * 58;
+
+    return { ...item, x, y };
+  });
+  const linePoints = points.map((point) => `${point.x},${point.y}`).join(' ');
+  const yAxisTicks = [
+    maxValue,
+    Number(((maxValue + minValue) / 2).toFixed(1)),
+    minValue,
+  ];
+  const isImproving = change < 0;
+
+  return (
+    <Card className="h-fit self-start overflow-hidden rounded-[2.5rem] border-[#39B5A8]/10 bg-white shadow-sm">
+      <CardHeader className="p-8 pb-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-xl font-black text-[#041614]">Lost Parcel Rate</CardTitle>
+            <p className="mt-1 text-sm font-medium text-gray-400">Loss incidents over time</p>
+          </div>
+          <span
+            className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
+              isImproving ? 'border-emerald-100 bg-emerald-50 text-emerald-600' : 'border-red-100 bg-red-50 text-red-600'
+            }`}
+          >
+            {isImproving ? 'Improving' : 'Worsening'}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="px-8 pb-8">
+        <div className="grid grid-cols-3 gap-3">
+          <LossRateStat label="Current" value={`${data[data.length - 1].value}%`} />
+          <LossRateStat label="Average" value={`${average}%`} />
+          <LossRateStat label="Change" value={`${change > 0 ? '+' : ''}${change}%`} tone={isImproving ? 'text-emerald-600' : 'text-red-600'} />
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-[#39B5A8]/10 bg-white p-5">
+          <div className="grid grid-cols-[42px_minmax(0,1fr)] gap-4">
+            <div className="relative h-48 pb-7">
+              {yAxisTicks.map((tick) => {
+                const y = 18 + ((maxValue - tick) / range) * 58;
+
+                return (
+                  <span
+                    key={tick}
+                    className="absolute right-0 -translate-y-1/2 text-[10px] font-bold text-[#1A5D56]/50"
+                    style={{ top: `${y}%` }}
+                  >
+                    {tick}%
+                  </span>
+                );
+              })}
+            </div>
+
+            <div className="relative h-48 pb-7">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+                {yAxisTicks.map((tick) => {
+                  const y = 18 + ((maxValue - tick) / range) * 58;
+
+                  return <line key={tick} x1="0" x2="100" y1={y} y2={y} stroke="#39B5A8" strokeOpacity="0.14" strokeDasharray="4 6" />;
+                })}
+                <polyline points={linePoints} fill="none" stroke={isImproving ? '#10B981' : '#EF4444'} strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+
+              {points.map((point) => (
+                <div
+                  key={`${point.label}-loss-point`}
+                  className={`group absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm ${isImproving ? 'bg-emerald-500' : 'bg-red-500'}`}
+                  style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                >
+                  <span className="absolute left-1/2 top-[-2.25rem] hidden -translate-x-1/2 rounded-lg border border-[#39B5A8]/10 bg-white px-2 py-1 text-[10px] font-black text-[#1A5D56] shadow-sm group-hover:block">
+                    {point.value}%
+                  </span>
+                </div>
+              ))}
+
+              <div className="absolute inset-x-0 bottom-0 flex justify-between text-[10px] font-black uppercase tracking-[0.12em] text-[#1A5D56]/50">
+                {points.map((point) => (
+                  <span key={point.label}>{point.label}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LossRateStat({ label, tone = 'text-[#041614]', value }: { label: string; tone?: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#39B5A8]/10 bg-[#F0F9F8] p-4">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#39B5A8]">{label}</p>
+      <p className={`mt-2 text-lg font-black ${tone}`}>{value}</p>
+    </div>
+  );
+}
+
+interface DeliveryTimeDatum {
+  route: string;
+  minutes: number;
+}
+
+function DeliveryTimeChart({
+  average,
+  data,
+  onViewChange,
+  slowest,
+  view,
+}: {
+  average: number;
+  data: DeliveryTimeDatum[];
+  onViewChange: (view: DeliveryTimeView) => void;
+  slowest: DeliveryTimeDatum;
+  view: DeliveryTimeView;
+}) {
+  const maxMinutes = Math.max(...data.map((item) => item.minutes));
+
+  return (
+    <Card className="h-fit self-start overflow-hidden rounded-[2.5rem] border-[#39B5A8]/10 bg-white shadow-sm">
+      <CardHeader className="p-8 pb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-xl font-black text-[#041614]">Average Delivery Time</CardTitle>
+            <p className="mt-1 text-sm font-medium text-gray-400">Bottlenecks by route or region</p>
+          </div>
+          <div className="flex rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] p-1">
+            {(['Route', 'Region'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onViewChange(option)}
+                className={`rounded-lg px-3 py-2 text-[10px] font-black transition-colors ${
+                  view === option ? 'bg-[#39B5A8] text-white' : 'text-[#1A5D56] hover:bg-white'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="px-8 pb-8">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <DeliveryTimeStat label="Network Avg" value={`${average} mins`} />
+          <DeliveryTimeStat label="Bottleneck" value={`${slowest.minutes} mins`} tone="text-amber-600" />
+        </div>
+
+        <div className="custom-scrollbar mt-6 grid max-h-72 gap-4 overflow-y-auto pr-2 md:grid-cols-2">
+          {data.map((item) => {
+            const width = Math.max(12, (item.minutes / maxMinutes) * 100);
+            const isBottleneck = item.route === slowest.route;
+
+            return (
+              <div key={item.route} className="rounded-2xl border border-[#39B5A8]/10 bg-[#F0F9F8]/70 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-black text-[#041614]">{item.route}</p>
+                    {isBottleneck && (
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-600">Slowest segment</p>
+                    )}
+                  </div>
+                  <span className={`shrink-0 text-sm font-black ${isBottleneck ? 'text-amber-600' : 'text-[#39B5A8]'}`}>
+                    {item.minutes} mins
+                  </span>
+                </div>
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-white">
+                  <div
+                    className={`h-full rounded-full ${isBottleneck ? 'bg-amber-500' : 'bg-[#39B5A8]'}`}
+                    style={{ width: `${width}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DeliveryTimeStat({ label, tone = 'text-[#041614]', value }: { label: string; tone?: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#39B5A8]/10 bg-[#F0F9F8] p-4">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#39B5A8]">{label}</p>
+      <p className={`mt-2 text-lg font-black ${tone}`}>{value}</p>
     </div>
   );
 }
