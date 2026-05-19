@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from '../../lib/router';
 import {
   ChevronDown,
@@ -17,25 +17,38 @@ import {
 } from 'lucide-react';
 
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
-import { MOCK_DRIVERS, type DriverStatus } from './driverRecords';
+import { type DriverStatus } from './driverRecords';
+import { fetchDrivers, type DriverRow } from '../../lib/supabaseSchema';
 
 type RatingFilter = 'all' | 'excellent' | 'good' | 'fair' | 'low';
 
 export default function DriversPage() {
   const navigate = useNavigate();
+  const [drivers, setDrivers] = useState<DriverRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all');
   const [statusFilter, setStatusFilter] = useState<DriverStatus | 'all'>('all');
   const [regionFilter, setRegionFilter] = useState('All Regions');
 
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    fetchDrivers()
+      .then((rows) => { if (isMounted) setDrivers(rows); })
+      .catch(() => { if (isMounted) setDrivers([]); })
+      .finally(() => { if (isMounted) setIsLoading(false); });
+    return () => { isMounted = false; };
+  }, []);
+
   const regions = useMemo(
-    () => ['All Regions', ...Array.from(new Set(MOCK_DRIVERS.map((driver) => driver.region)))],
-    [],
+    () => ['All Regions', ...Array.from(new Set(drivers.map((d) => d.region).filter(Boolean)))],
+    [drivers],
   );
 
   const filteredDrivers = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-    return MOCK_DRIVERS.filter((driver) => {
+    return drivers.filter((driver) => {
       const matchesSearch =
         driver.name.toLowerCase().includes(query) ||
         driver.id.toLowerCase().includes(query) ||
@@ -52,11 +65,11 @@ export default function DriversPage() {
 
       return matchesSearch && matchesRating && matchesStatus && matchesRegion;
     });
-  }, [ratingFilter, regionFilter, searchQuery, statusFilter]);
+  }, [drivers, ratingFilter, regionFilter, searchQuery, statusFilter]);
 
-  const availableCount = MOCK_DRIVERS.filter((driver) => driver.status === 'available').length;
-  const onDeliveryCount = MOCK_DRIVERS.filter((driver) => driver.status === 'on_delivery').length;
-  const highRatedCount = MOCK_DRIVERS.filter((driver) => driver.rating >= 4.8).length;
+  const availableCount = drivers.filter((d) => d.status === 'available').length;
+  const onDeliveryCount = drivers.filter((d) => d.status === 'on_delivery').length;
+  const highRatedCount = drivers.filter((d) => d.rating >= 4.8).length;
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -77,7 +90,7 @@ export default function DriversPage() {
           </div>
 
           <div className="rounded-full border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39B5A8]">
-            {filteredDrivers.length} Drivers
+            {isLoading ? 'Loading...' : `${filteredDrivers.length} Drivers`}
           </div>
         </header>
 

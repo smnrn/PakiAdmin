@@ -1,125 +1,148 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
   Ban,
   Calendar,
   Clock,
+  Mail,
   MapPin,
+  Package,
   PackageCheck,
   Percent,
   Phone,
-  Mail,
-  Star,
-  Timer,
-  Truck,
-  User,
   RotateCcw,
   ShieldOff,
+  Star,
+  Store,
+  TrendingUp,
   X,
 } from 'lucide-react';
 
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { useNavigate } from '../../lib/router';
-import { MOCK_DRIVERS, type AccountStanding, type DeliveryRecordItem, type DriverRecord, type DriverStatus } from './driverRecords';
+import { fetchOperatorDetail, updateOperatorAccountStatus, type OperatorDetailRow } from '../../lib/supabaseSchema';
 
-interface DriverDetailPageProps {
-  driverId: string;
+interface DropOffOperatorDetailPageProps {
+  operatorId: string;
 }
 
 type AccountAction = 'suspend' | 'reactivate' | 'deactivate';
 
-export default function DriverDetailPage({ driverId }: DriverDetailPageProps) {
+export default function DropOffOperatorDetailPage({ operatorId }: DropOffOperatorDetailPageProps) {
   const navigate = useNavigate();
-  const initialDriver = MOCK_DRIVERS.find((item) => item.id === driverId) ?? MOCK_DRIVERS[0];
-  const [driver, setDriver] = useState<DriverRecord>(initialDriver);
+  const [operator, setOperator] = useState<OperatorDetailRow | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<AccountAction | null>(null);
   const [actionReason, setActionReason] = useState('');
-  const latestRating = driver.ratingsHistory[0];
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchOperatorDetail(operatorId)
+      .then((data) => { if (isMounted) { setOperator(data); setIsLoading(false); } })
+      .catch(() => { if (isMounted) setIsLoading(false); });
+    return () => { isMounted = false; };
+  }, [operatorId]);
+
+  const latestRating = operator?.customerRatings?.[0];
+  const capacity = operator?.binCapacity;
 
   const closeActionModal = () => {
     setPendingAction(null);
     setActionReason('');
   };
 
-  const handleConfirmAccountAction = () => {
-    if (!pendingAction || !actionReason.trim()) return;
-
+  const handleConfirmAccountAction = async () => {
+    if (!pendingAction || !actionReason.trim() || !operator) return;
+    await updateOperatorAccountStatus(operator.id, pendingAction, actionReason.trim());
     const actionDate = new Date().toISOString().split('T')[0];
-    const nextStanding: AccountStanding =
-      pendingAction === 'reactivate' ? 'active' : pendingAction === 'suspend' ? 'suspended' : 'deactivated';
-    const nextStatus: DriverStatus =
-      pendingAction === 'reactivate' ? 'available' : pendingAction === 'suspend' ? 'suspended' : 'deactivated';
-
-    setDriver((current) => ({
+    const nextStanding = pendingAction === 'reactivate' ? 'active' : pendingAction === 'suspend' ? 'suspended' : 'deactivated';
+    const nextStatus = pendingAction === 'reactivate' ? 'active' : pendingAction === 'suspend' ? 'suspended' : 'deactivated';
+    setOperator((current: OperatorDetailRow | null) => current ? ({
       ...current,
       accountStanding: nextStanding,
       status: nextStatus,
       accountActionDate: actionDate,
       accountActionReason: actionReason.trim(),
       lastActive: pendingAction === 'deactivate' ? 'Permanently deactivated' : current.lastActive,
-    }));
-
+      operatingHours: pendingAction === 'deactivate' ? 'Deactivated' : pendingAction === 'suspend' ? 'Suspended' : current.operatingHours,
+    }) : current);
     closeActionModal();
   };
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F0F9F8] font-sans text-[#1A5D56]">
-      <PakiShipSidebar activeTab="drivers" />
+      <PakiShipSidebar activeTab="drop-off-operators" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-[#39B5A8]/10 bg-white/80 px-10 backdrop-blur-md">
           <button
             type="button"
-            onClick={() => navigate('/pakiship/drivers')}
+            onClick={() => navigate('/pakiship/drop-off-operators')}
             className="inline-flex items-center gap-2 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 py-2 text-sm font-bold text-[#1A5D56] transition-colors hover:bg-[#39B5A8]/10"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Drivers
+            Back to Operators
           </button>
 
           <div className="rounded-full border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39B5A8]">
-            {driver.id}
+            {operator?.id ?? '...'}
           </div>
         </header>
+
+        {isLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-sm font-bold text-[#39B5A8] uppercase tracking-widest animate-pulse">Loading operator...</p>
+          </div>
+        ) : !operator ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-sm font-bold text-red-400">Operator not found.</p>
+          </div>
+        ) : (
 
         <main className="flex-1 overflow-y-auto p-10 space-y-8">
           <section className="rounded-[2.5rem] border border-[#39B5A8]/10 bg-white p-8 shadow-sm">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex items-start gap-5">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#39B5A8] to-[#1A5D56] text-2xl font-black text-white shadow-lg shadow-[#39B5A8]/20">
-                  {driver.name.charAt(0).toUpperCase()}
+                  {operator.businessName.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-[#041614]">{driver.name}</h1>
+                  <h1 className="text-3xl font-bold tracking-tight text-[#041614]">{operator.businessName}</h1>
                   <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <StatusBadge status={driver.status} />
+                    <StatusBadge status={operator.status} />
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-600 border border-amber-100">
                       <Star className="h-3.5 w-3.5 fill-current" />
-                      {driver.rating.toFixed(1)}
+                      {operator.averageRating.toFixed(1)}
                     </span>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F0F9F8] px-3 py-1 text-xs font-bold text-[#39B5A8]">
-                      <Truck className="h-3.5 w-3.5" />
-                      {driver.vehicleType}
+                      <Store className="h-3.5 w-3.5" />
+                      {operator.location}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="grid gap-3 text-sm font-semibold text-[#1A5D56] sm:grid-cols-2">
-                <ProfileLine icon={<Mail className="h-4 w-4" />} label="Email" value={driver.email} />
-                <ProfileLine icon={<Phone className="h-4 w-4" />} label="Phone" value={driver.phone} />
-                <ProfileLine icon={<MapPin className="h-4 w-4" />} label="Region" value={`${driver.city}, ${driver.region}`} />
-                <ProfileLine icon={<Clock className="h-4 w-4" />} label="Last Active" value={driver.lastActive} />
+                <ProfileLine icon={<Mail className="h-4 w-4" />} label="Email" value={operator.email} />
+                <ProfileLine icon={<Phone className="h-4 w-4" />} label="Phone" value={operator.phone} />
+                <ProfileLine icon={<MapPin className="h-4 w-4" />} label="Region" value={`${operator.location}, ${operator.region}`} />
+                <ProfileLine icon={<Clock className="h-4 w-4" />} label="Hours" value={operator.operatingHours} />
               </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-[#F0F9F8] p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#39B5A8]">Registered Address</p>
+              <p className="mt-1 text-sm font-bold text-[#1A5D56]">{operator.address}</p>
+              <p className="mt-1 text-xs font-semibold text-gray-400">{operator.ownerName}</p>
             </div>
           </section>
 
           <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard icon={<PackageCheck className="h-5 w-5" />} label="Completed Deliveries" value={driver.completedDeliveries.toLocaleString()} detail="Lifetime completed jobs" tone="emerald" />
-            <MetricCard icon={<Percent className="h-5 w-5" />} label="On-Time Rate" value={`${driver.onTimeRate}%`} detail="Delivered within promised window" tone="blue" />
-            <MetricCard icon={<Timer className="h-5 w-5" />} label="Average Time" value={driver.averageDeliveryTime} detail="Average completed delivery time" tone="amber" />
-            <MetricCard icon={<User className="h-5 w-5" />} label="Cancellation Rate" value={`${driver.cancellationRate}%`} detail={`${driver.acceptanceRate}% assignment acceptance`} tone="red" />
+            <MetricCard icon={<PackageCheck className="h-5 w-5" />} label="Parcels Handled" value={operator.parcelsHandled.toLocaleString()} detail={`${operator.pendingParcels} pending parcels`} tone="emerald" />
+            <MetricCard icon={<TrendingUp className="h-5 w-5" />} label="Successful Handoffs" value={`${operator.successfulHandoffRate}%`} detail="Completed without exception" tone="blue" />
+            <MetricCard icon={<Percent className="h-5 w-5" />} label="Issue Rate" value={`${operator.issueRate}%`} detail="Recent exception rate" tone="red" />
+            <MetricCard icon={<Star className="h-5 w-5" />} label="Customer Rating" value={operator.averageRating.toFixed(1)} detail={`Latest ${latestRating ? latestRating.rating.toFixed(1) : '0.0'} rating`} tone="amber" />
           </section>
 
           <section className="rounded-[2rem] border border-[#39B5A8]/10 bg-white p-6 shadow-sm">
@@ -127,20 +150,20 @@ export default function DriverDetailPage({ driverId }: DriverDetailPageProps) {
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#39B5A8]">Account Standing</p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <h2 className="text-2xl font-bold text-[#041614]">Driver Account Controls</h2>
-                  <AccountStandingBadge standing={driver.accountStanding} />
+                  <h2 className="text-2xl font-bold text-[#041614]">Operator Account Controls</h2>
+                  <AccountStandingBadge standing={operator.accountStanding} />
                 </div>
-                {driver.accountActionReason && (
+                {operator.accountActionReason && (
                   <div className="mt-4 rounded-2xl bg-[#F0F9F8] p-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#39B5A8]">Latest Reason</p>
-                    <p className="mt-1 text-sm font-semibold text-[#1A5D56]">{driver.accountActionReason}</p>
-                    {driver.accountActionDate && <p className="mt-1 text-xs font-semibold text-gray-400">{formatDate(driver.accountActionDate)}</p>}
+                    <p className="mt-1 text-sm font-semibold text-[#1A5D56]">{operator.accountActionReason}</p>
+                    {operator.accountActionDate && <p className="mt-1 text-xs font-semibold text-gray-400">{formatDate(operator.accountActionDate)}</p>}
                   </div>
                 )}
               </div>
 
               <div className="flex flex-wrap gap-3">
-                {driver.accountStanding === 'active' && (
+                {operator.accountStanding === 'active' && (
                   <>
                     <button
                       type="button"
@@ -161,7 +184,7 @@ export default function DriverDetailPage({ driverId }: DriverDetailPageProps) {
                   </>
                 )}
 
-                {driver.accountStanding === 'suspended' && (
+                {operator.accountStanding === 'suspended' && (
                   <>
                     <button
                       type="button"
@@ -182,7 +205,7 @@ export default function DriverDetailPage({ driverId }: DriverDetailPageProps) {
                   </>
                 )}
 
-                {driver.accountStanding === 'deactivated' && (
+                {operator.accountStanding === 'deactivated' && (
                   <p className="rounded-2xl bg-red-50 px-5 py-3 text-sm font-bold text-red-600">
                     Account permanently deactivated
                   </p>
@@ -195,16 +218,40 @@ export default function DriverDetailPage({ driverId }: DriverDetailPageProps) {
             <div className="rounded-[2rem] border border-[#39B5A8]/10 bg-white p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-[#041614]">Ratings History</h2>
-                  <p className="text-sm font-semibold text-[#1A5D56]/60">Recent customer feedback and rating movement.</p>
+                  <h2 className="text-xl font-bold text-[#041614]">Bin Capacity</h2>
+                  <p className="text-sm font-semibold text-[#1A5D56]/60">{(capacity?.utilizationRate ?? 0)}% utilized</p>
+                </div>
+                <span className="rounded-full border border-[#39B5A8]/10 bg-[#F0F9F8] px-3 py-1 text-xs font-black text-[#39B5A8]">
+                  {(capacity?.availableBins ?? 0)} Available
+                </span>
+              </div>
+
+              <div className="mt-6">
+                <div className="h-3 overflow-hidden rounded-full bg-[#F0F9F8]">
+                  <div className="h-full rounded-full bg-[#39B5A8]" style={{ width: `${capacity?.utilizationRate ?? 0}%` }} />
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <CapacityTile label="Total Bins" value={(capacity?.totalBins ?? 0).toLocaleString()} />
+                  <CapacityTile label="Occupied" value={(capacity?.occupiedBins ?? 0).toLocaleString()} />
+                  <CapacityTile label="Reserved" value={(capacity?.reservedBins ?? 0).toLocaleString()} />
+                  <CapacityTile label="Available" value={(capacity?.availableBins ?? 0).toLocaleString()} />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-[#39B5A8]/10 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#041614]">Customer Ratings</h2>
+                  <p className="text-sm font-semibold text-[#1A5D56]/60">Recent drop-off feedback</p>
                 </div>
                 <span className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-xs font-black text-amber-600">
-                  Latest {latestRating.rating.toFixed(1)}
+                  {operator.averageRating.toFixed(1)} Average
                 </span>
               </div>
 
               <div className="mt-6 space-y-3">
-                {driver.ratingsHistory.map((item) => (
+                {operator.customerRatings.map((item: any) => (
                   <div key={`${item.date}-${item.customer}`} className="rounded-2xl bg-[#F0F9F8] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -221,39 +268,44 @@ export default function DriverDetailPage({ driverId }: DriverDetailPageProps) {
                 ))}
               </div>
             </div>
+          </section>
 
-            <div className="overflow-hidden rounded-[2rem] border border-[#39B5A8]/10 bg-white shadow-sm">
-              <div className="border-b border-[#39B5A8]/10 p-6">
-                <h2 className="text-xl font-bold text-[#041614]">Delivery Record</h2>
-                <p className="text-sm font-semibold text-[#1A5D56]/60">Recent deliveries, outcomes, and issue notes.</p>
+          <section className="overflow-hidden rounded-[2rem] border border-[#39B5A8]/10 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-[#39B5A8]/10 px-6 py-5">
+              <div>
+                <h2 className="text-xl font-bold text-[#041614]">Drop-Off History</h2>
+                <p className="text-sm font-semibold text-[#1A5D56]/60">Recent parcel intake and release records</p>
               </div>
+              <Package className="h-5 w-5 text-[#39B5A8]" />
+            </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-[#F0F9F8]/70 border-b border-[#39B5A8]/10">
-                    <tr>
-                      <TableHead>Delivery</TableHead>
-                      <TableHead>Destination</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Rating</TableHead>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#39B5A8]/5">
-                    {driver.deliveryRecord.map((delivery) => (
-                      <DeliveryRow key={delivery.id} delivery={delivery} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-[#F0F9F8]/70 border-b border-[#39B5A8]/10">
+                  <tr>
+                    <TableHead>Record</TableHead>
+                    <TableHead>Received</TableHead>
+                    <TableHead>Released</TableHead>
+                    <TableHead>Exceptions</TableHead>
+                    <TableHead>Status</TableHead>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#39B5A8]/5">
+                  {operator.dropOffHistory.map((item: any) => (
+                    <HistoryRow key={item.id} history={item} />
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
         </main>
+        )}
       </div>
 
-      {pendingAction && (
+      {pendingAction && operator && (
         <AccountActionModal
           action={pendingAction}
-          driverName={driver.name}
+          businessName={operator.businessName}
           onCancel={closeActionModal}
           onConfirm={handleConfirmAccountAction}
           onReasonChange={setActionReason}
@@ -310,91 +362,107 @@ function MetricCard({
   );
 }
 
+function CapacityTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-[#F0F9F8] p-4">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#39B5A8]">{label}</p>
+      <p className="mt-2 text-2xl font-black text-[#041614]">{value}</p>
+    </div>
+  );
+}
+
 function TableHead({ children }: { children: ReactNode }) {
   return <th className="px-6 py-4 text-[10px] font-bold text-[#39B5A8] uppercase tracking-widest">{children}</th>;
 }
 
-function DeliveryRow({ delivery }: { delivery: DeliveryRecordItem }) {
+interface DropOffHistoryItem {
+  id: string;
+  date: string;
+  parcelsReceived: number;
+  parcelsReleased: number;
+  exceptions: number;
+  status: string;
+}
+
+function HistoryRow({ history }: { history: DropOffHistoryItem }) {
   return (
     <tr className="transition-colors hover:bg-[#F0F9F8]/30">
       <td className="px-6 py-5">
-        <p className="font-bold text-[#041614]">{delivery.id}</p>
+        <p className="font-bold text-[#041614]">{history.id}</p>
         <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-gray-400">
           <Calendar className="h-3.5 w-3.5" />
-          {formatDate(delivery.completedAt)}
+          {formatDate(history.date)}
         </p>
       </td>
-      <td className="px-6 py-5 min-w-[200px]">
-        <p className="font-semibold text-[#1A5D56]">{delivery.destination}</p>
-        <p className="text-xs font-semibold text-gray-400">{delivery.region}</p>
-        {delivery.issue && <p className="mt-1 text-xs font-semibold text-red-500">{delivery.issue}</p>}
+      <td className="px-6 py-5">
+        <p className="font-black text-[#041614]">{history.parcelsReceived.toLocaleString()}</p>
       </td>
       <td className="px-6 py-5">
-        <DeliveryStatusBadge status={delivery.status} />
+        <p className="font-black text-[#041614]">{history.parcelsReleased.toLocaleString()}</p>
       </td>
       <td className="px-6 py-5">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-600 border border-amber-100">
-          <Star className="h-3.5 w-3.5 fill-current" />
-          {delivery.rating.toFixed(1)}
-        </span>
+        <p className={`font-black ${history.exceptions > 0 ? 'text-red-500' : 'text-[#1A5D56]'}`}>{history.exceptions}</p>
+      </td>
+      <td className="px-6 py-5">
+        <HistoryStatusBadge status={history.status} />
       </td>
     </tr>
   );
 }
 
-function DeliveryStatusBadge({ status }: { status: DeliveryRecordItem['status'] }) {
-  const statusConfig = {
-    Delivered: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    Delayed: 'bg-amber-50 text-amber-600 border-amber-100',
-    Cancelled: 'bg-red-50 text-red-600 border-red-100',
+function HistoryStatusBadge({ status }: { status: string }) {
+  const statusConfig: Record<string, string> = {
+    Completed: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    'In Progress': 'bg-blue-50 text-blue-600 border-blue-100',
+    'Issue Logged': 'bg-red-50 text-red-600 border-red-100',
   };
 
   return (
-    <span className={`inline-block whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${statusConfig[status]}`}>
+    <span className={`inline-block whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${statusConfig[status] || 'bg-gray-50 text-gray-600 border-gray-100'}`}>
       {status}
     </span>
   );
 }
 
-function AccountStandingBadge({ standing }: { standing: AccountStanding }) {
-  const standingConfig = {
+function AccountStandingBadge({ standing }: { standing: string }) {
+  const standingConfig: Record<string, string> = {
     active: 'bg-emerald-50 text-emerald-600 border-emerald-100',
     suspended: 'bg-amber-50 text-amber-600 border-amber-100',
     deactivated: 'bg-red-50 text-red-600 border-red-100',
   };
 
-  const labels = {
+  const labels: Record<string, string> = {
     active: 'Active',
     suspended: 'Suspended',
     deactivated: 'Permanently Deactivated',
   };
 
   return (
-    <span className={`inline-block whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${standingConfig[standing]}`}>
-      {labels[standing]}
+    <span className={`inline-block whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${standingConfig[standing] || 'bg-gray-50 text-gray-600 border-gray-100'}`}>
+      {labels[standing] || standing}
     </span>
   );
 }
 
 function AccountActionModal({
   action,
-  driverName,
+  businessName,
   onCancel,
   onConfirm,
   onReasonChange,
   reason,
 }: {
   action: AccountAction;
-  driverName: string;
+  businessName: string;
   onCancel: () => void;
   onConfirm: () => void;
   onReasonChange: (reason: string) => void;
   reason: string;
 }) {
   const actionLabels = {
-    suspend: 'Suspend Driver',
-    reactivate: 'Reactivate Driver',
-    deactivate: 'Deactivate Driver Permanently',
+    suspend: 'Suspend Operator',
+    reactivate: 'Reactivate Operator',
+    deactivate: 'Deactivate Operator Permanently',
   };
 
   return (
@@ -406,7 +474,7 @@ function AccountActionModal({
           </div>
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-[#041614]">{actionLabels[action]}</h2>
-            <p className="mt-1 text-sm font-medium text-gray-400">{driverName}</p>
+            <p className="mt-1 text-sm font-medium text-gray-400">{businessName}</p>
           </div>
           <button type="button" onClick={onCancel} className="rounded-xl p-2 transition-colors hover:bg-[#F0F9F8]">
             <X className="h-5 w-5 text-[#1A5D56]" />
@@ -441,26 +509,26 @@ function AccountActionModal({
   );
 }
 
-function StatusBadge({ status }: { status: DriverStatus }) {
-  const statusConfig = {
-    available: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    on_delivery: 'bg-blue-50 text-blue-600 border-blue-100',
-    offline: 'bg-gray-50 text-gray-500 border-gray-100',
+function StatusBadge({ status }: { status: string }) {
+  const statusConfig: Record<string, string> = {
+    active: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    limited: 'bg-amber-50 text-amber-600 border-amber-100',
+    inactive: 'bg-gray-50 text-gray-500 border-gray-100',
     suspended: 'bg-red-50 text-red-600 border-red-100',
     deactivated: 'bg-red-100 text-red-700 border-red-200',
   };
 
-  const labels = {
-    available: 'Available',
-    on_delivery: 'On Delivery',
-    offline: 'Offline',
+  const labels: Record<string, string> = {
+    active: 'Active',
+    limited: 'Limited Capacity',
+    inactive: 'Inactive',
     suspended: 'Suspended',
     deactivated: 'Deactivated',
   };
 
   return (
-    <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase border ${statusConfig[status]}`}>
-      {labels[status]}
+    <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-3 py-1 rounded-full uppercase border ${statusConfig[status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+      {labels[status] || status}
     </span>
   );
 }

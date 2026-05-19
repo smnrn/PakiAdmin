@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useNavigate } from '../../lib/router';
 import {
   Search,
@@ -28,169 +28,38 @@ import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { pakiParkLogo, pakiShipLogo } from '../../lib/assets';
 import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
+import {
+  fetchDriverApplications, fetchBusinessApplications, fetchDropOffApplications,
+  approveApplication, rejectApplication,
+  type DriverApplicationRow, type BusinessApplicationRow, type DropOffApplicationRow,
+} from '../../lib/supabaseSchema';
 
 type ApplicantType = 'driver' | 'business';
 type AcceptanceTab = ApplicantType | 'dropoff';
 type StatusType = 'pending' | 'approved' | 'rejected';
 
-interface Applicant {
+type Applicant = {
   id: string;
   name: string;
   email: string;
   phone: string;
   region: string;
-  type: ApplicantType;
   applicationDate: string;
   documentCount: number;
-  status: StatusType;
+  status: 'pending' | 'approved' | 'rejected';
+  accountStatus: 'active' | 'inactive';
+  activatedDate?: string;
   vehicleType?: string;
   plateNumber?: string;
   businessName?: string;
   businessType?: string;
-  accountStatus?: 'inactive' | 'active';
-  activatedDate?: string;
-  documents: Document[];
-}
+  documents: Array<{ name: string; size: string; uploadDate: string; url: string }>;
+  type: ApplicantType;
+};
+type DropOffApplication = DropOffApplicationRow;
 
-interface Document {
-  name: string;
-  size: string;
-  uploadDate: string;
-  url: string;
-}
 
-interface DropOffApplication {
-  id: string;
-  businessName: string;
-  ownerName: string;
-  email: string;
-  phone: string;
-  location: string;
-  address: string;
-  dateApplied: string;
-  status: StatusType;
-  platformStatus: 'inactive' | 'active';
-  activatedDate?: string;
-  rejectionReason?: string;
-  businessDocuments: BusinessDocument[];
-}
 
-interface BusinessDocument {
-  name: string;
-  requirement: 'DTI/SEC Registration' | 'Business Permit' | 'Location Proof';
-  size: string;
-  uploadDate: string;
-  url: string;
-  verificationStatus: 'submitted' | 'needs_review';
-}
-
-const MOCK_DROPOFF_APPLICATIONS: DropOffApplication[] = [
-  {
-    id: 'APP-001',
-    businessName: 'Mabuhay Express Drop-Off',
-    ownerName: 'Maria Lourdes Santos',
-    email: 'maria.santos@mabuhayexpress.ph',
-    phone: '+63 917 482 1039',
-    location: 'Makati City, Metro Manila',
-    address: 'Unit 4B, Kalayaan Avenue, Barangay Poblacion, Makati City',
-    dateApplied: '2026-05-08',
-    status: 'pending',
-    platformStatus: 'inactive',
-    businessDocuments: [
-      { name: 'Mabuhay Express DTI Registration.pdf', requirement: 'DTI/SEC Registration', size: '2.4 MB', uploadDate: '2026-05-08', url: '#', verificationStatus: 'submitted' },
-      { name: 'Makati Business Permit 2026.pdf', requirement: 'Business Permit', size: '3.1 MB', uploadDate: '2026-05-08', url: '#', verificationStatus: 'submitted' },
-      { name: 'Poblacion Lease Agreement.pdf', requirement: 'Location Proof', size: '1.8 MB', uploadDate: '2026-05-08', url: '#', verificationStatus: 'submitted' },
-    ],
-  },
-  {
-    id: 'APP-002',
-    businessName: 'Cebu Parcel Hub',
-    ownerName: 'Roberto Lim',
-    email: 'roberto.lim@cebuhub.ph',
-    phone: '+63 922 641 5590',
-    location: 'Cebu City, Cebu',
-    address: 'F. Ramos Street, Barangay Cogon Ramos, Cebu City',
-    dateApplied: '2026-05-09',
-    status: 'approved',
-    platformStatus: 'active',
-    activatedDate: '2026-05-10',
-    businessDocuments: [
-      { name: 'Cebu Parcel Hub SEC Certificate.pdf', requirement: 'DTI/SEC Registration', size: '2.8 MB', uploadDate: '2026-05-09', url: '#', verificationStatus: 'submitted' },
-      { name: 'Cebu City Business Permit.pdf', requirement: 'Business Permit', size: '2.6 MB', uploadDate: '2026-05-09', url: '#', verificationStatus: 'submitted' },
-      { name: 'F Ramos Utility Bill.pdf', requirement: 'Location Proof', size: '1.2 MB', uploadDate: '2026-05-09', url: '#', verificationStatus: 'submitted' },
-    ],
-  },
-  {
-    id: 'APP-003',
-    businessName: 'Davao QuickDrop Center',
-    ownerName: 'Angela Dizon',
-    email: 'angela.dizon@quickdropdavao.ph',
-    phone: '+63 915 338 7742',
-    location: 'Davao City, Davao del Sur',
-    address: 'Door 2, J.P. Laurel Avenue, Bajada, Davao City',
-    dateApplied: '2026-05-10',
-    status: 'pending',
-    platformStatus: 'inactive',
-    businessDocuments: [
-      { name: 'Davao QuickDrop DTI Certificate.pdf', requirement: 'DTI/SEC Registration', size: '2.2 MB', uploadDate: '2026-05-10', url: '#', verificationStatus: 'submitted' },
-      { name: 'Davao Business Permit 2026.pdf', requirement: 'Business Permit', size: '2.9 MB', uploadDate: '2026-05-10', url: '#', verificationStatus: 'submitted' },
-      { name: 'Bajada Store Location Photos.pdf', requirement: 'Location Proof', size: '4.3 MB', uploadDate: '2026-05-10', url: '#', verificationStatus: 'needs_review' },
-    ],
-  },
-  {
-    id: 'APP-004',
-    businessName: 'Iloilo Bayanihan Logistics',
-    ownerName: 'Paolo Villanueva',
-    email: 'paolo.villanueva@bayanihanlogistics.ph',
-    phone: '+63 920 114 8061',
-    location: 'Iloilo City, Iloilo',
-    address: 'Commission Civil Street, Jaro, Iloilo City',
-    dateApplied: '2026-05-11',
-    status: 'rejected',
-    platformStatus: 'inactive',
-    rejectionReason: 'Business permit document was unreadable during review.',
-    businessDocuments: [
-      { name: 'Iloilo Bayanihan DTI Registration.pdf', requirement: 'DTI/SEC Registration', size: '2.1 MB', uploadDate: '2026-05-11', url: '#', verificationStatus: 'submitted' },
-      { name: 'Iloilo Business Permit Scan.pdf', requirement: 'Business Permit', size: '640 KB', uploadDate: '2026-05-11', url: '#', verificationStatus: 'needs_review' },
-      { name: 'Jaro Rental Contract.pdf', requirement: 'Location Proof', size: '1.6 MB', uploadDate: '2026-05-11', url: '#', verificationStatus: 'submitted' },
-    ],
-  },
-  {
-    id: 'APP-005',
-    businessName: 'Baguio Pine Drop-Off',
-    ownerName: 'Elena Cruz',
-    email: 'elena.cruz@pinedrop.ph',
-    phone: '+63 918 775 0204',
-    location: 'Baguio City, Benguet',
-    address: 'Lower Session Road, Barangay Salud Mitra, Baguio City',
-    dateApplied: '2026-05-12',
-    status: 'pending',
-    platformStatus: 'inactive',
-    businessDocuments: [
-      { name: 'Baguio Pine DTI Certificate.pdf', requirement: 'DTI/SEC Registration', size: '2.0 MB', uploadDate: '2026-05-12', url: '#', verificationStatus: 'submitted' },
-      { name: 'Baguio City Business Permit.pdf', requirement: 'Business Permit', size: '2.7 MB', uploadDate: '2026-05-12', url: '#', verificationStatus: 'submitted' },
-      { name: 'Session Road Location Proof.pdf', requirement: 'Location Proof', size: '1.9 MB', uploadDate: '2026-05-12', url: '#', verificationStatus: 'submitted' },
-    ],
-  },
-  {
-    id: 'APP-006',
-    businessName: 'Quezon City Padala Point',
-    ownerName: 'Mark Anthony Reyes',
-    email: 'mark.reyes@padalapoint.ph',
-    phone: '+63 927 551 6632',
-    location: 'Quezon City, Metro Manila',
-    address: 'Tomas Morato Avenue, Barangay Sacred Heart, Quezon City',
-    dateApplied: '2026-05-13',
-    status: 'approved',
-    platformStatus: 'active',
-    activatedDate: '2026-05-14',
-    businessDocuments: [
-      { name: 'Padala Point SEC Registration.pdf', requirement: 'DTI/SEC Registration', size: '3.0 MB', uploadDate: '2026-05-13', url: '#', verificationStatus: 'submitted' },
-      { name: 'QC Business Permit.pdf', requirement: 'Business Permit', size: '2.5 MB', uploadDate: '2026-05-13', url: '#', verificationStatus: 'submitted' },
-      { name: 'Tomas Morato Lease Contract.pdf', requirement: 'Location Proof', size: '1.7 MB', uploadDate: '2026-05-13', url: '#', verificationStatus: 'submitted' },
-    ],
-  },
-];
 
 export default function UserAcceptancePage() {
   const { logout, user } = useAuth();
@@ -201,123 +70,38 @@ export default function UserAcceptancePage() {
   const [statusFilter, setStatusFilter] = useState<StatusType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
-  const [dropOffApplications, setDropOffApplications] = useState<DropOffApplication[]>(MOCK_DROPOFF_APPLICATIONS);
+  const [dropOffApplications, setDropOffApplications] = useState<DropOffApplication[]>([]);
   const [selectedDropOffApplication, setSelectedDropOffApplication] = useState<DropOffApplication | null>(null);
   const [showDropOffRejectModal, setShowDropOffRejectModal] = useState(false);
   const [dropOffRejectionReason, setDropOffRejectionReason] = useState('');
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
+  const placeholderName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.allSettled([
+      fetchDriverApplications(),
+      fetchBusinessApplications(),
+      fetchDropOffApplications(),
+    ]).then(([driverRes, bizRes, dropOffRes]) => {
+      if (!isMounted) return;
+      const drivers: Applicant[] = (driverRes.status === 'fulfilled' ? driverRes.value : []).map((a) => ({ ...a, type: 'driver' as ApplicantType }));
+      const businesses: Applicant[] = (bizRes.status === 'fulfilled' ? bizRes.value : []).map((a) => ({ ...a, type: 'business' as ApplicantType }));
+      setApplicants([...drivers, ...businesses]);
+      if (dropOffRes.status === 'fulfilled') setDropOffApplications(dropOffRes.value);
+      setIsLoading(false);
+    });
+    return () => { isMounted = false; };
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
-
-  // Mock data
-  const [applicants, setApplicants] = useState<Applicant[]>([
-    {
-      id: 'DRV-001',
-      name: 'Maria Santos',
-      email: 'maria.santos@email.com',
-      phone: '+63 917 123 4567',
-      region: 'Makati City, Metro Manila',
-      type: 'driver',
-      applicationDate: '2026-04-25',
-      documentCount: 4,
-      status: 'pending',
-      accountStatus: 'inactive',
-      vehicleType: 'Motorcycle',
-      plateNumber: 'ABC 1234',
-      documents: [
-        { name: 'Driver\'s License', size: '2.3 MB', uploadDate: '2026-04-25', url: '#' },
-        { name: 'Government ID', size: '1.8 MB', uploadDate: '2026-04-25', url: '#' },
-        { name: 'Vehicle Registration', size: '1.8 MB', uploadDate: '2026-04-25', url: '#' },
-        { name: 'NBI Clearance', size: '3.1 MB', uploadDate: '2026-04-25', url: '#' },
-      ],
-    },
-    {
-      id: 'DRV-002',
-      name: 'Carlos Reyes',
-      email: 'carlos.reyes@email.com',
-      phone: '+63 918 234 5678',
-      region: 'Cebu City, Cebu',
-      type: 'driver',
-      applicationDate: '2026-04-24',
-      documentCount: 4,
-      status: 'approved',
-      accountStatus: 'active',
-      activatedDate: '2026-04-24',
-      vehicleType: 'Van',
-      plateNumber: 'XYZ 5678',
-      documents: [
-        { name: 'Driver\'s License', size: '2.1 MB', uploadDate: '2026-04-24', url: '#' },
-        { name: 'Government ID', size: '1.6 MB', uploadDate: '2026-04-24', url: '#' },
-        { name: 'Vehicle Registration', size: '1.9 MB', uploadDate: '2026-04-24', url: '#' },
-        { name: 'NBI Clearance', size: '2.8 MB', uploadDate: '2026-04-24', url: '#' },
-      ],
-    },
-    {
-      id: 'DRV-003',
-      name: 'Juan Cruz',
-      email: 'juan.cruz@email.com',
-      phone: '+63 919 345 6789',
-      region: 'Davao City, Davao del Sur',
-      type: 'driver',
-      applicationDate: '2026-04-23',
-      documentCount: 3,
-      status: 'rejected',
-      accountStatus: 'inactive',
-      vehicleType: 'Motorcycle',
-      plateNumber: 'DEF 9012',
-      documents: [
-        { name: 'Driver\'s License', size: '2.0 MB', uploadDate: '2026-04-23', url: '#' },
-        { name: 'Government ID', size: '1.4 MB', uploadDate: '2026-04-23', url: '#' },
-        { name: 'Vehicle Registration', size: '1.7 MB', uploadDate: '2026-04-23', url: '#' },
-      ],
-    },
-    {
-      id: 'BIZ-001',
-      name: 'Ana Garcia',
-      email: 'ana.garcia@business.com',
-      phone: '+63 920 456 7890',
-      region: 'Iloilo City, Iloilo',
-      type: 'business',
-      applicationDate: '2026-04-26',
-      documentCount: 5,
-      status: 'pending',
-      businessName: 'Garcia Enterprises',
-      businessType: 'Retail',
-      documents: [
-        { name: 'DTI Registration', size: '2.5 MB', uploadDate: '2026-04-26', url: '#' },
-        { name: 'Mayor\'s Permit', size: '2.2 MB', uploadDate: '2026-04-26', url: '#' },
-        { name: 'BIR Certificate', size: '1.9 MB', uploadDate: '2026-04-26', url: '#' },
-        { name: 'Business Profile', size: '3.5 MB', uploadDate: '2026-04-26', url: '#' },
-        { name: 'Valid ID', size: '1.4 MB', uploadDate: '2026-04-26', url: '#' },
-      ],
-    },
-    {
-      id: 'BIZ-002',
-      name: 'Roberto Tan',
-      email: 'roberto.tan@shop.com',
-      phone: '+63 921 567 8901',
-      region: 'Baguio City, Benguet',
-      type: 'business',
-      applicationDate: '2026-04-25',
-      documentCount: 5,
-      status: 'approved',
-      businessName: 'Tan\'s Store',
-      businessType: 'Food & Beverage',
-      documents: [
-        { name: 'DTI Registration', size: '2.4 MB', uploadDate: '2026-04-25', url: '#' },
-        { name: 'Mayor\'s Permit', size: '2.1 MB', uploadDate: '2026-04-25', url: '#' },
-        { name: 'BIR Certificate', size: '1.8 MB', uploadDate: '2026-04-25', url: '#' },
-        { name: 'Business Profile', size: '3.2 MB', uploadDate: '2026-04-25', url: '#' },
-        { name: 'Valid ID', size: '1.5 MB', uploadDate: '2026-04-25', url: '#' },
-      ],
-    },
-  ]);
 
   const filteredApplicants = applicants.filter(
     (applicant) =>
@@ -357,81 +141,55 @@ export default function UserAcceptancePage() {
         : applicants.filter((a) => a.type === activeTab && a.status === 'rejected').length,
   };
 
-  const handleApprove = (applicantId: string) => {
+  const handleApprove = async (applicantId: string) => {
     const activatedDate = new Date().toISOString().split('T')[0];
+    const applicant = applicants.find((a) => a.id === applicantId);
+    if (!applicant) return;
+    const table = applicant.type === 'driver' ? 'applications' : 'business_applications';
+    await approveApplication('driver', table, applicantId);
     let activatedApplicant: Applicant | null = null;
 
     setApplicants((current) =>
-      current.map((applicant) => {
-        if (applicant.id !== applicantId) return applicant;
-
-        activatedApplicant = {
-          ...applicant,
-          status: 'approved',
-          accountStatus: 'active',
-          activatedDate,
-        };
-        return activatedApplicant;
+      current.map((a) => {
+        if (a.id !== applicantId) return a;
+        activatedApplicant = { ...a, status: 'approved', accountStatus: 'active', activatedDate };
+        return activatedApplicant!;
       }),
     );
-
-    if (activatedApplicant) {
-      setSelectedApplicant(activatedApplicant);
-    }
+    if (activatedApplicant) setSelectedApplicant(activatedApplicant);
   };
 
-  const handleReject = (applicantId: string) => {
-    if (!rejectionReason.trim()) {
-      alert('Please provide a written rejection reason.');
-      return;
-    }
-
+  const handleReject = async (applicantId: string) => {
+    if (!rejectionReason.trim()) { alert('Please provide a written rejection reason.'); return; }
+    const applicant = applicants.find((a) => a.id === applicantId);
+    if (!applicant) return;
+    const table = applicant.type === 'driver' ? 'applications' : 'business_applications';
+    await rejectApplication('driver', table, applicantId, rejectionReason);
     setApplicants((current) =>
-      current.map((applicant) =>
-        applicant.id === applicantId
-          ? { ...applicant, status: 'rejected', accountStatus: 'inactive', activatedDate: undefined }
-          : applicant,
-      ),
+      current.map((a) => a.id === applicantId ? { ...a, status: 'rejected', accountStatus: 'inactive', activatedDate: undefined } : a),
     );
     setSelectedApplicant(null);
     setRejectionReason('');
   };
 
-  const handleApproveDropOff = (application: DropOffApplication) => {
+  const handleApproveDropOff = async (application: DropOffApplication) => {
+    await approveApplication('routing', 'operator_applications', application.id);
     const activatedApplication: DropOffApplication = {
-      ...application,
-      status: 'approved',
-      platformStatus: 'active',
-      activatedDate: new Date().toISOString().split('T')[0],
-      rejectionReason: undefined,
+      ...application, status: 'approved', platformStatus: 'active',
+      activatedDate: new Date().toISOString().split('T')[0], rejectionReason: undefined,
     };
-
-    setDropOffApplications((current) =>
-      current.map((item) =>
-        item.id === application.id ? activatedApplication : item,
-      ),
-    );
+    setDropOffApplications((current) => current.map((item) => item.id === application.id ? activatedApplication : item));
     setSelectedDropOffApplication(activatedApplication);
   };
 
-  const handleRejectDropOff = () => {
+  const handleRejectDropOff = async () => {
     if (!selectedDropOffApplication || !dropOffRejectionReason.trim()) return;
-
+    await rejectApplication('routing', 'operator_applications', selectedDropOffApplication.id, dropOffRejectionReason);
     const rejectedApplication: DropOffApplication = {
-      ...selectedDropOffApplication,
-      status: 'rejected',
-      platformStatus: 'inactive',
-      activatedDate: undefined,
-      rejectionReason: dropOffRejectionReason.trim(),
+      ...selectedDropOffApplication, status: 'rejected', platformStatus: 'inactive',
+      activatedDate: undefined, rejectionReason: dropOffRejectionReason.trim(),
     };
-
-    setDropOffApplications((current) =>
-      current.map((item) =>
-        item.id === selectedDropOffApplication.id
-          ? rejectedApplication
-          : item,
-      ),
-    );
+    setDropOffApplications((current) => current.map((item) => item.id === selectedDropOffApplication.id ? rejectedApplication : item));
     setSelectedDropOffApplication(rejectedApplication);
     setShowDropOffRejectModal(false);
     setDropOffRejectionReason('');
@@ -709,8 +467,8 @@ export default function UserAcceptancePage() {
                             {applicant.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-bold text-[#041614] group-hover:text-[#39B5A8] transition-colors">{applicant.name}</p>
-                            <p className="text-xs text-gray-400 font-medium">{applicant.id}</p>
+                            <p className="font-bold text-[#041614] group-hover:text-[#39B5A8] transition-colors whitespace-nowrap">{applicant.name}</p>
+                            <p className="text-xs text-gray-400 font-medium whitespace-nowrap">{applicant.id}</p>
                           </div>
                         </div>
                       </td>
@@ -1023,8 +781,8 @@ function DropOffApplicationsTable({
                     {application.businessName.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-bold text-[#041614]">{application.businessName}</p>
-                    <p className="text-xs text-gray-400 font-medium">{application.ownerName}</p>
+                    <p className="font-bold text-[#041614] whitespace-nowrap">{application.businessName}</p>
+                    <p className="text-xs text-gray-400 font-medium whitespace-nowrap">{application.ownerName}</p>
                     {application.status === 'rejected' && application.rejectionReason && (
                       <p className="mt-1 max-w-[220px] truncate text-xs font-semibold text-red-500">
                         Fix needed: {application.rejectionReason}
@@ -1110,14 +868,14 @@ function DropOffInfoItem({ icon, label, value }: { icon: ReactNode; label: strin
   );
 }
 
-function DocumentVerificationBadge({ status }: { status: BusinessDocument['verificationStatus'] }) {
-  const statusConfig = {
+function DocumentVerificationBadge({ status }: { status: string }) {
+  const statusConfig: Record<string, string> = {
     submitted: 'bg-emerald-50 text-emerald-600 border-emerald-100',
     needs_review: 'bg-amber-50 text-amber-600 border-amber-100',
   };
 
   return (
-    <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-2.5 py-1 rounded-full uppercase border ${statusConfig[status]}`}>
+    <span className={`inline-block whitespace-nowrap text-[10px] font-bold px-2.5 py-1 rounded-full uppercase border ${statusConfig[status] || 'bg-gray-50 text-gray-600 border-gray-100'}`}>
       {status === 'submitted' ? 'Submitted' : 'Needs Review'}
     </span>
   );

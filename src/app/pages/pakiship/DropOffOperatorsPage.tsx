@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   ChevronDown,
   CircleCheck,
@@ -14,23 +14,36 @@ import {
 
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { useNavigate } from '../../lib/router';
-import { MOCK_OPERATORS, type OperatorStatus } from './dropOffOperatorRecords';
+import { type OperatorStatus } from './dropOffOperatorRecords';
+import { fetchOperators, type OperatorRow } from '../../lib/supabaseSchema';
 
 export default function DropOffOperatorsPage() {
   const navigate = useNavigate();
+  const [operators, setOperators] = useState<OperatorRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OperatorStatus | 'all'>('all');
   const [locationFilter, setLocationFilter] = useState('All Locations');
 
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    fetchOperators()
+      .then((rows) => { if (isMounted) setOperators(rows); })
+      .catch(() => { if (isMounted) setOperators([]); })
+      .finally(() => { if (isMounted) setIsLoading(false); });
+    return () => { isMounted = false; };
+  }, []);
+
   const locations = useMemo(
-    () => ['All Locations', ...Array.from(new Set(MOCK_OPERATORS.map((operator) => operator.region)))],
-    [],
+    () => ['All Locations', ...Array.from(new Set(operators.map((o) => o.region).filter(Boolean)))],
+    [operators],
   );
 
   const filteredOperators = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
-    return MOCK_OPERATORS.filter((operator) => {
+    return operators.filter((operator) => {
       const matchesSearch =
         operator.id.toLowerCase().includes(query) ||
         operator.businessName.toLowerCase().includes(query) ||
@@ -42,11 +55,11 @@ export default function DropOffOperatorsPage() {
 
       return matchesSearch && matchesStatus && matchesLocation;
     });
-  }, [locationFilter, searchQuery, statusFilter]);
+  }, [operators, locationFilter, searchQuery, statusFilter]);
 
-  const activeCount = MOCK_OPERATORS.filter((operator) => operator.status === 'active').length;
-  const limitedCount = MOCK_OPERATORS.filter((operator) => operator.status === 'limited').length;
-  const parcelsHandled = MOCK_OPERATORS.reduce((total, operator) => total + operator.parcelsHandled, 0);
+  const activeCount = operators.filter((o) => o.status === 'active').length;
+  const limitedCount = operators.filter((o) => o.status === 'limited').length;
+  const parcelsHandled = operators.reduce((total, o) => total + o.parcelsHandled, 0);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -66,7 +79,7 @@ export default function DropOffOperatorsPage() {
           </div>
 
           <div className="rounded-full border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39B5A8]">
-            {filteredOperators.length} Operators
+            {isLoading ? 'Loading...' : `${filteredOperators.length} Operators`}
           </div>
         </header>
 

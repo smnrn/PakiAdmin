@@ -34,10 +34,11 @@ import { toast } from 'sonner';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 import {
-  getPakiShipDrivers,
-  getPakiShipShipments,
-  updatePakiShipShipmentStatus,
-} from '../../lib/pakishipApi';
+  fetchShipments,
+  fetchShipmentDriverNames,
+  updateShipmentStatus as updateShipmentStatusInDB,
+  type ShipmentStatus,
+} from '../../lib/supabaseSchema';
 
 interface ShipmentRecord {
   id: string;
@@ -76,190 +77,7 @@ export default function ShipmentsPage() {
     navigate('/');
   };
 
-  const [shipments, setShipments] = useState<ShipmentRecord[]>([
-    {
-      id: 'PKS-2026-120',
-      store: '7-Eleven P. Noval',
-      sender: 'Miguel Santos',
-      receiver: 'Carla Mendoza',
-      location: '1043 P. Noval St, Sampaloc, Manila',
-      destination: '2412 Dapita n St., Sampaloc, Manila',
-      quantity: '450 Units',
-      amount: '12,500',
-      status: 'In Transit',
-      driver: 'John Salazar',
-      eta: '12 mins',
-      date: 'Apr 16, 2026',
-    },
-    {
-      id: 'PKS-2026-120',
-      store: '7-Eleven P. Noval',
-      sender: 'Miguel Santos',
-      receiver: 'Carla Mendoza',
-      location: '1043 P. Noval St, Sampaloc, Manila',
-      destination: '2412 Dapitan St., Sampaloc, Manila',
-      quantity: '450 Units',
-      amount: '12,500',
-      status: 'In Transit',
-      driver: 'John Salazar',
-      eta: '12 mins',
-      date: 'Apr 16, 2026',
-    },
-    {
-      id: 'PKS-2026-128',
-      store: 'Lawson Lacson Ave',
-      sender: 'Alyssa Garcia',
-      receiver: 'Noel Ramirez',
-      location: 'Ground Floor, AH Lacson Ave, Manila',
-      destination: '1558 Espana Blvd, Corner Arsenio St.',
-      quantity: '1,240 Units',
-      amount: '27,510',
-      status: 'Pending',
-      driver: 'Unassigned',
-      eta: 'N/A',
-      date: 'Apr 16, 2026',
-    },
-    {
-      id: 'PKS-2026-220',
-      store: 'Alfamart Dapitan',
-      sender: 'Rico Tan',
-      receiver: 'Bea Flores',
-      location: '1221 Dapitan St, Sampaloc, Manila',
-      destination: '88 Cavite St., Sta. Cruz, Manila',
-      quantity: '850 Units',
-      amount: '14,240',
-      status: 'Delivered',
-      driver: 'Maria Reyes',
-      eta: 'Delivered',
-      date: 'Apr 15, 2026',
-    },
-    {
-      id: 'PKS-2026-222',
-      store: "Uncle John's Asturias",
-      sender: 'Monique Cruz',
-      receiver: 'Lester Villanueva',
-      location: 'Asturias St, Sampaloc, Manila',
-      destination: '412 Laon Laan St., Sampaloc',
-      quantity: '183 Units',
-      amount: '23,870',
-      status: 'In Transit',
-      driver: 'Mark Gonzales',
-      eta: '8 mins',
-      date: 'Apr 16, 2026',
-    },
-    {
-      id: 'PKS-2026-101',
-      store: '7-Eleven Espana',
-      sender: 'Paolo Dizon',
-      receiver: 'Jessa Rivera',
-      location: 'Espana Blvd cor. Moret St, Manila',
-      destination: '702 Quezon Blvd, Quiapo, Manila',
-      quantity: '624 Units',
-      amount: '18,920',
-      status: 'In Transit',
-      driver: 'Anna Martinez',
-      eta: '15 mins',
-      date: 'Apr 16, 2026',
-    },
-    {
-      id: 'PKS-2026-145',
-      store: 'Mini Stop Lerma',
-      sender: 'Theo Bautista',
-      receiver: 'Dianne Lopez',
-      location: 'Lerma St, Sampaloc, Manila',
-      destination: '523 Recto Ave., Quiapo, Manila',
-      quantity: '310 Units',
-      amount: '9,780',
-      status: 'Delivered',
-      driver: 'Jose Navarro',
-      eta: 'Delivered',
-      date: 'Apr 14, 2026',
-    },
-    {
-      id: 'PKS-2026-149',
-      store: 'Dali Laon Laan',
-      sender: 'Kristine Ramos',
-      receiver: 'Marco David',
-      location: 'Laon Laan Rd, Sampaloc, Manila',
-      destination: '1200 Blumentritt Rd, Manila',
-      quantity: '560 Units',
-      amount: '16,300',
-      status: 'Pending',
-      driver: 'Unassigned',
-      eta: 'N/A',
-      date: 'Apr 17, 2026',
-    },
-    {
-      id: 'PKS-2026-151',
-      store: 'Savemore UST',
-      sender: 'Nico Fernandez',
-      receiver: 'Patricia Ong',
-      location: 'Lacson Ave near UST, Manila',
-      destination: '99 Banawe St., Quezon City',
-      quantity: '720 Units',
-      amount: '21,450',
-      status: 'In Transit',
-      driver: 'Leo Castillo',
-      eta: '19 mins',
-      date: 'Apr 17, 2026',
-    },
-    {
-      id: 'PKS-2026-167',
-      store: 'Robinsons Otis',
-      sender: 'Faith Herrera',
-      receiver: 'Kevin Yu',
-      location: 'Otis St, Paco, Manila',
-      destination: '1440 Taft Ave., Malate, Manila',
-      quantity: '405 Units',
-      amount: '11,980',
-      status: 'Delivered',
-      driver: 'Grace Morales',
-      eta: 'Delivered',
-      date: 'Apr 13, 2026',
-    },
-    {
-      id: 'PKS-2026-171',
-      store: 'SM San Lazaro',
-      sender: 'Harvey Lim',
-      receiver: 'Rachel Co',
-      location: 'Felix Huertas Rd, Santa Cruz, Manila',
-      destination: '311 Fugoso St., Sampaloc, Manila',
-      quantity: '980 Units',
-      amount: '28,740',
-      status: 'In Transit',
-      driver: 'Daniel Torres',
-      eta: '22 mins',
-      date: 'Apr 17, 2026',
-    },
-    {
-      id: 'PKS-2026-176',
-      store: 'Mercury Espana',
-      sender: 'Janelle Reyes',
-      receiver: 'Oscar Medina',
-      location: 'Espana Blvd, Sampaloc, Manila',
-      destination: '212 Morayta St., Manila',
-      quantity: '275 Units',
-      amount: '7,920',
-      status: 'Pending',
-      driver: 'Unassigned',
-      eta: 'N/A',
-      date: 'Apr 17, 2026',
-    },
-    {
-      id: 'PKS-2026-181',
-      store: 'Puregold Tayuman',
-      sender: 'Leah Cortes',
-      receiver: 'Ramon Guevarra',
-      location: 'Tayuman St, Tondo, Manila',
-      destination: '210 Dimasalang Rd, Manila',
-      quantity: '512 Units',
-      amount: '13,860',
-      status: 'Delivered',
-      driver: 'Cesar Pineda',
-      eta: 'Delivered',
-      date: 'Apr 12, 2026',
-    },
-  ]);
+  const [shipments, setShipments] = useState<ShipmentRecord[]>([]);
 
   const [selectedShipment, setSelectedShipment] = useState<ShipmentRecord | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -284,15 +102,23 @@ export default function ShipmentsPage() {
     const loadingToast = toast.loading('Updating shipment status...');
 
     try {
-      const updatedShipment = await updatePakiShipShipmentStatus(selectedShipment.id, {
-        status: targetStatus,
+      const updatedShipment = await updateShipmentStatusInDB(
+        selectedShipment.id,
+        targetStatus as ShipmentStatus,
         reason,
-        updatedBy: placeholderName,
-      });
-
-      setShipments((prev) =>
-        prev.map((shipment) => (shipment.id === selectedShipment.id ? updatedShipment : shipment)),
+        placeholderName,
       );
+
+      if (updatedShipment) {
+        setShipments((prev) =>
+          prev.map((shipment) => (shipment.id === selectedShipment.id ? { ...shipment, ...updatedShipment } : shipment)),
+        );
+      } else {
+        // Optimistic update if Supabase returned null
+        setShipments((prev) =>
+          prev.map((s) => (s.id === selectedShipment.id ? { ...s, status: targetStatus } : s)),
+        );
+      }
       toast.dismiss(loadingToast);
       toast.success(targetStatus === 'Cancelled' ? 'Shipment cancelled' : `Shipment status updated to ${targetStatus}`);
       setIsDialogOpen(false);
@@ -307,31 +133,26 @@ export default function ShipmentsPage() {
     setIsLoadingShipments(true);
 
     Promise.all([
-      getPakiShipShipments({ limit: 100, page: 1, status: 'All' }),
-      getPakiShipDrivers(),
+      fetchShipments(),
+      fetchShipmentDriverNames(),
     ])
-      .then(([shipmentResponse, driverResponse]) => {
-        if (!isMounted) {
-          return;
-        }
-
-        setShipments(shipmentResponse.data);
-        setDriverOptions(['All Drivers', ...driverResponse.data]);
+      .then(([shipmentRows, driverNames]) => {
+        if (!isMounted) return;
+        setShipments(shipmentRows);
+        setDriverOptions(['All Drivers', ...driverNames]);
       })
       .catch(() => {
         if (isMounted) {
-          toast.error('Unable to load shipments from backend.');
+          // Backend unreachable — render with empty state (0 records)
+          setShipments([]);
+          setDriverOptions(['All Drivers']);
         }
       })
       .finally(() => {
-        if (isMounted) {
-          setIsLoadingShipments(false);
-        }
+        if (isMounted) setIsLoadingShipments(false);
       });
 
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
   const activeFilterCount = [

@@ -19,9 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/frontend/*"],
-      "@/modules/*": ["./src/frontend/app/*"],
-      "@/styles/*": ["./src/frontend/styles/*"]
+      "@/*": ["./src/*"],
+      "@/modules/*": ["./src/app/*"],
+      "@/styles/*": ["./src/styles/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

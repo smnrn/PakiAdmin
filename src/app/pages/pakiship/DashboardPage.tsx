@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { fetchDashboardStats, fetchDashboardFeed, fetchShipments, type DashboardStats, type ShipmentRow, type DashboardFeed } from '../../lib/supabaseSchema';
 import { useNavigate } from '../../lib/router';
 import {
   Package,
@@ -44,15 +45,48 @@ interface QuickActionItem {
   secondary: string;
 }
 
+const ZERO_STATS: DashboardStats = {
+  totalShipments: 0,
+  activeShipments: 0,
+  deliveredShipments: 0,
+  pendingShipments: 0,
+  cancelledShipments: 0,
+  totalDrivers: 0,
+  availableDrivers: 0,
+  onDeliveryDrivers: 0,
+  totalOperators: 0,
+  activeOperators: 0,
+  totalParcelsHandled: 0,
+};
+
 export default function DashboardPage() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [selectedRange, setSelectedRange] = useState<DashboardRange>('Today');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [activeQuickAction, setActiveQuickAction] = useState<QuickActionTab>('requests');
-  const [selectedRange, setSelectedRange] = useState<DashboardRange>('7 Days');
-  const [isRangeMenuOpen, setIsRangeMenuOpen] = useState(false);
+  const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
   const [customStartDate, setCustomStartDate] = useState('2026-05-01');
-  const [customEndDate, setCustomEndDate] = useState('2026-05-15');
+  const [customEndDate, setCustomEndDate] = useState('2026-05-31');
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
+  const [liveStats, setLiveStats] = useState<DashboardStats>(ZERO_STATS);
+  const [liveShipments, setLiveShipments] = useState<ShipmentRow[]>([]);
+  const [dashboardFeed, setDashboardFeed] = useState<DashboardFeed>({ recentShipments: [], pendingDriverApps: 0, openLostParcels: 0 });
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsStatsLoading(true);
+    Promise.allSettled([fetchDashboardStats(), fetchShipments(), fetchDashboardFeed()])
+      .then(([statsRes, shipmentsRes, feedRes]) => {
+        if (!isMounted) return;
+        if (statsRes.status === 'fulfilled') setLiveStats(statsRes.value);
+        if (shipmentsRes.status === 'fulfilled') setLiveShipments(shipmentsRes.value);
+        if (feedRes.status === 'fulfilled') setDashboardFeed(feedRes.value);
+        setIsStatsLoading(false);
+      })
+      .catch(() => { if (isMounted) setIsStatsLoading(false); });
+    return () => { isMounted = false; };
+  }, []);
 
   const placeholderName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
   const formatShortDate = (value: string) =>
@@ -79,109 +113,31 @@ export default function DashboardPage() {
     navigate('/');
   };
 
+  // Build live KPI cards — first 6 cards wired to Supabase; the rest remain contextual
+  const liveKpis = [
+    { label: 'Active Shipments', value: isStatsLoading ? '...' : String(liveStats.activeShipments), change: '', trend: 'up', icon: <Truck className="w-5 h-5" />, color: 'bg-blue-100 text-blue-600', description: 'Shipments currently in transit' },
+    { label: 'Delivered', value: isStatsLoading ? '...' : String(liveStats.deliveredShipments), change: '', trend: 'up', icon: <Package className="w-5 h-5" />, color: 'bg-teal-100 text-teal-600', description: 'Total delivered shipments' },
+    { label: 'Pending', value: isStatsLoading ? '...' : String(liveStats.pendingShipments), change: '', trend: 'up', icon: <Clock className="w-5 h-5" />, color: 'bg-amber-100 text-amber-600', description: 'Shipments awaiting assignment' },
+    { label: 'Cancelled', value: isStatsLoading ? '...' : String(liveStats.cancelledShipments), change: '', trend: 'down', icon: <XCircle className="w-5 h-5" />, color: 'bg-red-100 text-red-600', description: 'Cancelled shipments' },
+    { label: 'Available Drivers', value: isStatsLoading ? '...' : String(liveStats.availableDrivers), change: '', trend: 'up', icon: <Target className="w-5 h-5" />, color: 'bg-emerald-100 text-emerald-600', description: 'Drivers ready for dispatch' },
+    { label: 'Active Operators', value: isStatsLoading ? '...' : String(liveStats.activeOperators), change: '', trend: 'up', icon: <DollarSign className="w-5 h-5" />, color: 'bg-[#39B5A8]/10 text-[#2D8F85]', description: 'Active drop-off operator hubs' },
+  ];
+
+  // shared empty-state types
+  type AlertItem = { title: string; detail: string; time: string; severity: string; icon: React.ReactNode; tone: string; actionLabel: string; actionPath: string };
+  type ActivityItem = { title: string; description: string; time: string; type: string; icon: React.ReactNode; tone: string };
+  type TrxItem = { id: string; person: string; type: string; amount: string; date: string; status: string };
+
+  const liveShipmentRows = dashboardFeed.recentShipments;
+  const emptyAlerts: AlertItem[] = [];
+  const emptyActivity: ActivityItem[] = [];
+  const emptyTrx: TrxItem[] = [];
+
   const presetDashboardData = {
-    Today: {
-      kpis: [
-        { label: 'Total Revenue', value: '\u20B17,480', change: '+1.3%', trend: 'up', icon: <DollarSign className="w-5 h-5" />, color: 'bg-[#39B5A8]/10 text-[#2D8F85]', description: 'Today\'s collected logistics revenue' },
-        { label: 'Active Shipments', value: '92', change: '+3.4%', trend: 'up', icon: <Truck className="w-5 h-5" />, color: 'bg-blue-100 text-blue-600', description: 'Shipments currently moving today' },
-        { label: 'On-Time Delivery', value: '96.12%', change: '+1.1%', trend: 'up', icon: <Target className="w-5 h-5" />, color: 'bg-emerald-100 text-emerald-600', description: 'Same-day deliveries within SLA' },
-        { label: 'Canceled Bookings', value: '8', change: '-2.0%', trend: 'down', icon: <XCircle className="w-5 h-5" />, color: 'bg-red-100 text-red-600', description: 'Bookings cancelled today' },
-        { label: 'Avg Delivery Time', value: '16 mins', change: '-6.8%', trend: 'down', icon: <Clock className="w-5 h-5" />, color: 'bg-amber-100 text-amber-600', description: 'Average turnaround for today' },
-        { label: 'Total Deliveries', value: '184', change: '+9.2%', trend: 'up', icon: <Package className="w-5 h-5" />, color: 'bg-teal-100 text-teal-600', description: 'Completed deliveries since midnight' },
-      ],
-      shipments: [
-        { store: '7-Eleven Dapitan', location: 'Dapitan St. cor A.H. Lacson', amount: '4.80K', status: 'In Transit' },
-        { store: 'Lawson Espana', location: 'Espana Blvd near P. Noval', amount: '3.20K', status: 'Pending' },
-        { store: "Uncle John's Noval", location: 'P. Noval St.', amount: '2.90K', status: 'Delivered' },
-      ],
-      transactions: [
-        { id: 'TRX-9921', person: 'Sarah Dela Pena', type: 'Food', amount: '+\u20B1300', date: 'Today, 2:40 PM', status: 'In' },
-        { id: 'TRX-9920', person: 'Joey Salvador', type: 'Fragile', amount: '+\u20B11,100', date: 'Today, 1:15 PM', status: 'In' },
-        { id: 'TRX-9919', person: 'Angela Cruz', type: 'Groceries', amount: '+\u20B1480', date: 'Today, 12:05 PM', status: 'In' },
-      ],
-      alerts: [
-        { title: 'Failed payment detected', detail: 'Two COD remittances from the Lacson hub failed verification checks.', time: '4 mins ago', severity: 'Critical', icon: <CreditCard className="h-4 w-4" />, tone: 'bg-[#FFF1F1] text-[#D64242] border-[#FFD6D6]', actionLabel: 'Review Payments', actionPath: '/pakiship/analytics' },
-        { title: 'Shipment stuck in transit', detail: 'Route SHP-2214 has not moved for 27 minutes near Espana Boulevard.', time: '9 mins ago', severity: 'High', icon: <Truck className="h-4 w-4" />, tone: 'bg-[#FFF7E7] text-[#C47A00] border-[#FFE7B8]', actionLabel: 'Open Tracking', actionPath: '/pakiship/tracking' },
-        { title: 'Flagged parcel report', detail: 'Incident PKS-9982 needs same-shift review after repeated customer follow-ups.', time: '15 mins ago', severity: 'Critical', icon: <Flag className="h-4 w-4" />, tone: 'bg-[#FFE8E8] text-[#DE3B3B] border-[#FFD0D0]', actionLabel: 'View Report', actionPath: '/pakiship/analytics' },
-      ],
-      recentActivity: [
-        { title: 'New shipment booking created', description: 'Booking SHP-2214 was created for 7-Eleven Dapitan heading to P. Noval Hub.', time: '2 mins ago', type: 'Booking', icon: <Package className="h-4 w-4" />, tone: 'bg-[#E9FBF7] text-[#1A9B8B] border-[#C8F1EA]' },
-        { title: 'Delayed shipment flagged', description: 'Driver ETA for Lawson Espana moved by 18 minutes due to traffic buildup on Espana Blvd.', time: '8 mins ago', type: 'Delay', icon: <Clock className="h-4 w-4" />, tone: 'bg-[#FFF4DB] text-[#D08700] border-[#FFE5A8]' },
-        { title: 'Lost parcel report opened', description: 'A customer filed a lost parcel report for order PKS-9982 and escalation has started.', time: '14 mins ago', type: 'Incident', icon: <AlertTriangle className="h-4 w-4" />, tone: 'bg-[#FFE8E8] text-[#DE3B3B] border-[#FFD0D0]' },
-        { title: 'Admin approval completed', description: `${placeholderName} approved a pending fulfillment account request for the Lacson cluster.`, time: '21 mins ago', type: 'Admin Action', icon: <ShieldCheck className="h-4 w-4" />, tone: 'bg-[#E8F5FF] text-[#2D74DA] border-[#D3E6FF]' },
-      ],
-    },
-    '7 Days': {
-      kpis: [
-        { label: 'Total Revenue', value: '\u20B150,650', change: '+2.5%', trend: 'up', icon: <DollarSign className="w-5 h-5" />, color: 'bg-[#39B5A8]/10 text-[#2D8F85]', description: 'Weekly earnings from hub areas' },
-        { label: 'Active Shipments', value: '247', change: '+8.2%', trend: 'up', icon: <Truck className="w-5 h-5" />, color: 'bg-blue-100 text-blue-600', description: 'Currently in transit' },
-        { label: 'On-Time Delivery', value: '94.86%', change: '+2.1%', trend: 'up', icon: <Target className="w-5 h-5" />, color: 'bg-emerald-100 text-emerald-600', description: 'Delivered within promised timeframe' },
-        { label: 'Canceled Bookings', value: '87', change: '-5.4%', trend: 'down', icon: <XCircle className="w-5 h-5" />, color: 'bg-red-100 text-red-600', description: 'Total bookings canceled in this period' },
-        { label: 'Avg Delivery Time', value: '18 mins', change: '-11.2%', trend: 'down', icon: <Clock className="w-5 h-5" />, color: 'bg-amber-100 text-amber-600', description: 'Fast fulfillment for orders' },
-        { label: 'Total Deliveries', value: '1,100', change: '+18.7%', trend: 'up', icon: <Package className="w-5 h-5" />, color: 'bg-teal-100 text-teal-600', description: 'Completed this week' },
-      ],
-      shipments: [
-        { store: '7-Eleven Dapitan', location: 'Dapitan St. cor A.H. Lacson', amount: '12.19K', status: 'In Transit' },
-        { store: 'Lawson Espana', location: 'Espana Blvd near P. Noval', amount: '15.51K', status: 'Pending' },
-        { store: "Uncle John's Noval", location: 'P. Noval St.', amount: '09.24K', status: 'Delivered' },
-        { store: '7-Eleven Lacson', location: 'A.H. Lacson Ave.', amount: '11.10K', status: 'In Transit' },
-      ],
-      transactions: [
-        { id: 'TRX-9921', person: 'Sarah Dela Pena', type: 'Food', amount: '+\u20B1300', date: 'Today, 2:40 PM', status: 'In' },
-        { id: 'TRX-9920', person: 'Joey Salvador', type: 'Fragile', amount: '+\u20B11,100', date: 'Today, 1:15 PM', status: 'In' },
-        { id: 'TRX-9918', person: 'Carlos Santos', type: 'Fragile', amount: '+\u20B1880', date: 'Yesterday', status: 'In' },
-        { id: 'TRX-9915', person: 'Hannah Garcia', type: 'Clothing', amount: '+\u20B1160', date: 'Yesterday', status: 'In' },
-        { id: 'TRX-9914', person: 'Paul Mendoza', type: 'Electronics', amount: '+\u20B1650', date: 'Yesterday', status: 'In' },
-      ],
-      alerts: [
-        { title: 'Failed payment detected', detail: 'Five COD remittances were rejected during the latest settlement window.', time: '22 mins ago', severity: 'Critical', icon: <CreditCard className="h-4 w-4" />, tone: 'bg-[#FFF1F1] text-[#D64242] border-[#FFD6D6]', actionLabel: 'Review Payments', actionPath: '/pakiship/analytics' },
-        { title: 'Shipment stuck in transit', detail: 'Three active shipments are beyond expected idle thresholds and need dispatcher review.', time: '31 mins ago', severity: 'High', icon: <Truck className="h-4 w-4" />, tone: 'bg-[#FFF7E7] text-[#C47A00] border-[#FFE7B8]', actionLabel: 'Open Tracking', actionPath: '/pakiship/tracking' },
-        { title: 'Flagged parcel report', detail: 'Two lost parcel reports were escalated after missing rider callbacks.', time: '47 mins ago', severity: 'Critical', icon: <Flag className="h-4 w-4" />, tone: 'bg-[#FFE8E8] text-[#DE3B3B] border-[#FFD0D0]', actionLabel: 'View Report', actionPath: '/pakiship/analytics' },
-      ],
-      recentActivity: [
-        { title: 'New shipment booking created', description: 'Booking SHP-2214 was created for 7-Eleven Dapitan heading to P. Noval Hub.', time: '2 mins ago', type: 'Booking', icon: <Package className="h-4 w-4" />, tone: 'bg-[#E9FBF7] text-[#1A9B8B] border-[#C8F1EA]' },
-        { title: 'Delayed shipment flagged', description: 'Driver ETA for Lawson Espana moved by 18 minutes due to traffic buildup on Espana Blvd.', time: '8 mins ago', type: 'Delay', icon: <Clock className="h-4 w-4" />, tone: 'bg-[#FFF4DB] text-[#D08700] border-[#FFE5A8]' },
-        { title: 'Lost parcel report opened', description: 'A customer filed a lost parcel report for order PKS-9982 and escalation has started.', time: '14 mins ago', type: 'Incident', icon: <AlertTriangle className="h-4 w-4" />, tone: 'bg-[#FFE8E8] text-[#DE3B3B] border-[#FFD0D0]' },
-        { title: 'Admin approval completed', description: `${placeholderName} approved a pending fulfillment account request for the Lacson cluster.`, time: '21 mins ago', type: 'Admin Action', icon: <ShieldCheck className="h-4 w-4" />, tone: 'bg-[#E8F5FF] text-[#2D74DA] border-[#D3E6FF]' },
-        { title: 'Shipment delivered successfully', description: 'Uncle John Noval route posted a successful handoff and closed the trip in the system.', time: '34 mins ago', type: 'Delivery', icon: <Truck className="h-4 w-4" />, tone: 'bg-[#ECFDF3] text-[#199C5B] border-[#CFF3DE]' },
-      ],
-    },
-    '30 Days': {
-      kpis: [
-        { label: 'Total Revenue', value: '\u20B1214,380', change: '+14.2%', trend: 'up', icon: <DollarSign className="w-5 h-5" />, color: 'bg-[#39B5A8]/10 text-[#2D8F85]', description: 'Monthly earnings across active hubs' },
-        { label: 'Active Shipments', value: '684', change: '+10.7%', trend: 'up', icon: <Truck className="w-5 h-5" />, color: 'bg-blue-100 text-blue-600', description: 'Open shipment load this month' },
-        { label: 'On-Time Delivery', value: '95.34%', change: '+3.2%', trend: 'up', icon: <Target className="w-5 h-5" />, color: 'bg-emerald-100 text-emerald-600', description: 'Monthly on-time performance' },
-        { label: 'Canceled Bookings', value: '271', change: '-7.8%', trend: 'down', icon: <XCircle className="w-5 h-5" />, color: 'bg-red-100 text-red-600', description: 'Cancelled bookings in 30 days' },
-        { label: 'Avg Delivery Time', value: '17 mins', change: '-9.4%', trend: 'down', icon: <Clock className="w-5 h-5" />, color: 'bg-amber-100 text-amber-600', description: 'Average monthly turnaround' },
-        { label: 'Total Deliveries', value: '4,860', change: '+22.4%', trend: 'up', icon: <Package className="w-5 h-5" />, color: 'bg-teal-100 text-teal-600', description: 'Completed deliveries in 30 days' },
-      ],
-      shipments: [
-        { store: '7-Eleven Dapitan', location: 'Dapitan St. cor A.H. Lacson', amount: '48.30K', status: 'In Transit' },
-        { store: 'Lawson Espana', location: 'Espana Blvd near P. Noval', amount: '52.70K', status: 'Pending' },
-        { store: "Uncle John's Noval", location: 'P. Noval St.', amount: '39.90K', status: 'Delivered' },
-        { store: '7-Eleven Lacson', location: 'A.H. Lacson Ave.', amount: '44.10K', status: 'In Transit' },
-        { store: 'Mini Stop Lerma', location: 'Lerma Street', amount: '37.85K', status: 'Delivered' },
-      ],
-      transactions: [
-        { id: 'TRX-9841', person: 'Bea Navarro', type: 'Electronics', amount: '+\u20B12,480', date: 'Apr 28, 4:45 PM', status: 'In' },
-        { id: 'TRX-9832', person: 'Joshua Lim', type: 'Groceries', amount: '+\u20B11,960', date: 'Apr 27, 2:15 PM', status: 'In' },
-        { id: 'TRX-9819', person: 'Nina Reyes', type: 'Documents', amount: '+\u20B1900', date: 'Apr 26, 11:10 AM', status: 'In' },
-        { id: 'TRX-9807', person: 'Karl Mendoza', type: 'Fragile', amount: '+\u20B11,200', date: 'Apr 25, 6:20 PM', status: 'In' },
-        { id: 'TRX-9794', person: 'Anne Cruz', type: 'Food', amount: '+\u20B1650', date: 'Apr 25, 1:30 PM', status: 'In' },
-      ],
-      alerts: [
-        { title: 'Settlement failures accumulating', detail: 'Fourteen remittance mismatches were recorded during the 30-day reporting window.', time: 'This week', severity: 'Critical', icon: <CreditCard className="h-4 w-4" />, tone: 'bg-[#FFF1F1] text-[#D64242] border-[#FFD6D6]', actionLabel: 'Review Payments', actionPath: '/pakiship/analytics' },
-        { title: 'Recurring route stall pattern', detail: 'Lerma and Espana corridors logged the highest number of prolonged in-transit stops.', time: '3 days ago', severity: 'High', icon: <Truck className="h-4 w-4" />, tone: 'bg-[#FFF7E7] text-[#C47A00] border-[#FFE7B8]', actionLabel: 'Open Tracking', actionPath: '/pakiship/tracking' },
-        { title: 'Flagged reports need closure', detail: 'Seven customer escalations remained open beyond the preferred incident response window.', time: '5 days ago', severity: 'Critical', icon: <Flag className="h-4 w-4" />, tone: 'bg-[#FFE8E8] text-[#DE3B3B] border-[#FFD0D0]', actionLabel: 'View Reports', actionPath: '/pakiship/analytics' },
-      ],
-      recentActivity: [
-        { title: 'Regional hub throughput improved', description: 'Dapitan and Lacson hubs cleared the highest parcel volume this month.', time: 'This week', type: 'Performance', icon: <Truck className="h-4 w-4" />, tone: 'bg-[#ECFDF3] text-[#199C5B] border-[#CFF3DE]' },
-        { title: 'Lost parcel report backlog reduced', description: 'Investigation turnaround dropped by 12% after routing changes in the past 30 days.', time: '3 days ago', type: 'Incident', icon: <AlertTriangle className="h-4 w-4" />, tone: 'bg-[#FFE8E8] text-[#DE3B3B] border-[#FFD0D0]' },
-        { title: 'Admin approvals accelerated', description: 'Operations admins processed 18 more fulfillment requests compared to the prior period.', time: '5 days ago', type: 'Admin Action', icon: <ShieldCheck className="h-4 w-4" />, tone: 'bg-[#E8F5FF] text-[#2D74DA] border-[#D3E6FF]' },
-        { title: 'Peak booking window recorded', description: 'Weekend bookings produced the strongest transaction volume of the month.', time: '1 week ago', type: 'Booking', icon: <Package className="h-4 w-4" />, tone: 'bg-[#E9FBF7] text-[#1A9B8B] border-[#C8F1EA]' },
-      ],
-    },
-  } as const;
+    Today: { kpis: liveKpis, shipments: liveShipmentRows, transactions: emptyTrx, alerts: emptyAlerts, recentActivity: emptyActivity },
+    '7 Days': { kpis: liveKpis, shipments: liveShipmentRows, transactions: emptyTrx, alerts: emptyAlerts, recentActivity: emptyActivity },
+    '30 Days': { kpis: liveKpis, shipments: liveShipmentRows, transactions: emptyTrx, alerts: emptyAlerts, recentActivity: emptyActivity },
+  };
 
   const buildCustomDashboardData = (days: number) => {
     const revenue = Math.round(7146 * days);
@@ -200,30 +156,16 @@ export default function DashboardPage() {
         { label: 'Avg Delivery Time', value: `${avgTime} mins`, change: '-5.2%', trend: 'down', icon: <Clock className="w-5 h-5" />, color: 'bg-amber-100 text-amber-600', description: 'Average turnaround for custom period' },
         { label: 'Total Deliveries', value: deliveries.toLocaleString('en-US'), change: '+11.4%', trend: 'up', icon: <Package className="w-5 h-5" />, color: 'bg-teal-100 text-teal-600', description: 'Completed deliveries in custom range' },
       ],
-      shipments: [
-        { store: '7-Eleven Dapitan', location: 'Dapitan St. cor A.H. Lacson', amount: `${(days * 1.62).toFixed(2)}K`, status: 'In Transit' },
-        { store: 'Lawson Espana', location: 'Espana Blvd near P. Noval', amount: `${(days * 1.44).toFixed(2)}K`, status: 'Pending' },
-        { store: "Uncle John's Noval", location: 'P. Noval St.', amount: `${(days * 1.18).toFixed(2)}K`, status: 'Delivered' },
-      ],
-      transactions: [
-        { id: 'TRX-C901', person: 'Lia Santos', type: 'Documents', amount: `+\u20B1${(days * 74).toLocaleString('en-PH')}`, date: `${formatShortDate(customStartDate)} - ${formatShortDate(customEndDate)}`, status: 'In' },
-        { id: 'TRX-C902', person: 'Marco Diaz', type: 'Food', amount: `+\u20B1${(days * 63).toLocaleString('en-PH')}`, date: `${formatShortDate(customStartDate)} - ${formatShortDate(customEndDate)}`, status: 'In' },
-        { id: 'TRX-C903', person: 'Ava Reyes', type: 'Fragile', amount: `+\u20B1${(days * 92).toLocaleString('en-PH')}`, date: `${formatShortDate(customStartDate)} - ${formatShortDate(customEndDate)}`, status: 'In' },
-      ],
-      alerts: [
-        { title: 'Custom range payment exception', detail: `Payment review surfaced ${Math.max(1, Math.round(days / 4))} remittance issues in the selected window.`, time: 'Updated', severity: 'Critical', icon: <CreditCard className="h-4 w-4" />, tone: 'bg-[#FFF1F1] text-[#D64242] border-[#FFD6D6]', actionLabel: 'Review Payments', actionPath: '/pakiship/analytics' },
-        { title: 'Stuck shipment watchlist', detail: `${Math.max(1, Math.round(days / 6))} shipments showed prolonged idle time in the custom date range.`, time: 'Updated', severity: 'High', icon: <Truck className="h-4 w-4" />, tone: 'bg-[#FFF7E7] text-[#C47A00] border-[#FFE7B8]', actionLabel: 'Open Tracking', actionPath: '/pakiship/tracking' },
-        { title: 'Flagged reports synchronized', detail: `${Math.max(1, Math.round(days / 8))} incident reports are marked for immediate review in the selected period.`, time: 'Updated', severity: 'Critical', icon: <Flag className="h-4 w-4" />, tone: 'bg-[#FFE8E8] text-[#DE3B3B] border-[#FFD0D0]', actionLabel: 'View Reports', actionPath: '/pakiship/analytics' },
-      ],
-      recentActivity: [
-        { title: 'Custom range activity recalculated', description: `Operational feed refreshed for the selected ${days}-day window from ${formatShortDate(customStartDate)} to ${formatShortDate(customEndDate)}.`, time: 'Just now', type: 'Dashboard', icon: <CalendarDays className="h-4 w-4" />, tone: 'bg-[#E8F5FF] text-[#2D74DA] border-[#D3E6FF]' },
-        { title: 'Shipment performance reviewed', description: 'Top hubs and route movement were recalculated for the custom reporting period.', time: 'Updated', type: 'Performance', icon: <Truck className="h-4 w-4" />, tone: 'bg-[#ECFDF3] text-[#199C5B] border-[#CFF3DE]' },
-        { title: 'Incident queue synchronized', description: 'Open lost parcel and delay events were synchronized to match the current custom range.', time: 'Updated', type: 'Incident', icon: <AlertTriangle className="h-4 w-4" />, tone: 'bg-[#FFE8E8] text-[#DE3B3B] border-[#FFD0D0]' },
-      ],
+      shipments: liveShipmentRows,
+      transactions: emptyTrx,
+      alerts: emptyAlerts,
+      recentActivity: emptyActivity,
     };
   };
 
-  const activeDashboardData = selectedRange === 'Custom Range' ? buildCustomDashboardData(customDayCount) : presetDashboardData[selectedRange];
+  const activeDashboardData = selectedRange === 'Custom Range'
+    ? buildCustomDashboardData(customDayCount)
+    : presetDashboardData[selectedRange] ?? presetDashboardData['Today'];
 
   const handleExportData = () => {
     const csvRows = [
@@ -240,17 +182,12 @@ export default function DashboardPage() {
     document.body.removeChild(link);
   };
 
-  const pendingDriverApplications = [
-    { name: 'Maria Santos', vehicle: 'Motorcycle', submitted: '9 mins ago', priority: 'High' },
-    { name: 'Paolo Lim', vehicle: 'Van', submitted: '21 mins ago', priority: 'Medium' },
-    { name: 'Aira Villanueva', vehicle: 'Motorcycle', submitted: '48 mins ago', priority: 'High' },
-  ];
+  const pendingDriverApplications: { name: string; vehicle: string; submitted: string; priority: string }[] = [];
 
-  const lostParcelReports = [
-    { id: 'LPR-1021', route: 'Lacson to P. Noval', status: 'Escalated', submitted: '14 mins ago' },
-    { id: 'LPR-1018', route: 'Espana to Dapitan', status: 'Investigating', submitted: '31 mins ago' },
-    { id: 'LPR-1014', route: 'UST Overpass to Lerma', status: 'Awaiting rider update', submitted: '52 mins ago' },
-  ];
+  const lostParcelReports: { id: string; route: string; status: string; submitted: string }[] = [];
+
+  const pendingDriverCount = dashboardFeed.pendingDriverApps;
+  const openLostCount = dashboardFeed.openLostParcels;
 
   const [selectedQuickActionKey, setSelectedQuickActionKey] = useState('Maria Santos');
 
@@ -384,7 +321,7 @@ export default function DashboardPage() {
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setIsRangeMenuOpen((open) => !open)}
+                  onClick={() => setIsRangePickerOpen((open) => !open)}
                   className="inline-flex min-w-[220px] items-center justify-between gap-3 rounded-2xl border border-[#39B5A8]/20 bg-white px-5 py-3 font-bold text-[#041614] shadow-sm transition-colors hover:bg-[#F8FCFC]"
                 >
                   <span className="flex items-center gap-3">
@@ -396,7 +333,7 @@ export default function DashboardPage() {
                   <Filter className="h-4 w-4 text-[#1A5D56]/50" />
                 </button>
 
-                {isRangeMenuOpen && (
+                {isRangePickerOpen && (
                   <div className="absolute right-0 z-30 mt-3 w-[280px] overflow-hidden rounded-[1.75rem] border border-[#39B5A8]/10 bg-white shadow-xl">
                     <div className="p-3">
                       {(['Today', '7 Days', '30 Days', 'Custom Range'] as DashboardRange[]).map((option) => (
@@ -406,7 +343,7 @@ export default function DashboardPage() {
                           onClick={() => {
                             setSelectedRange(option);
                             if (option !== 'Custom Range') {
-                              setIsRangeMenuOpen(false);
+                              setIsRangePickerOpen(false);
                             }
                           }}
                           className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-bold transition-colors ${
@@ -443,7 +380,7 @@ export default function DashboardPage() {
                           </label>
                           <button
                             type="button"
-                            onClick={() => setIsRangeMenuOpen(false)}
+                            onClick={() => setIsRangePickerOpen(false)}
                             className="mt-0.5 inline-flex h-10 items-center justify-center rounded-xl bg-[#39B5A8] px-3 text-xs font-bold text-white transition-colors hover:bg-[#2F9D91]"
                           >
                             Apply Custom Range
@@ -535,10 +472,16 @@ export default function DashboardPage() {
                             </div>
                             <div>
                               <p className="font-bold text-[#041614]">Review Driver Applications</p>
-                              <p className="text-xs text-gray-400">3 drivers waiting for document review</p>
+                              <p className="text-xs text-gray-400">
+                                {pendingDriverCount === 0
+                                  ? 'No pending applications'
+                                  : `${pendingDriverCount} driver${pendingDriverCount === 1 ? '' : 's'} waiting for document review`}
+                              </p>
                             </div>
                           </div>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#39B5A8] shadow-sm">3</span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#39B5A8] shadow-sm">
+                            {pendingDriverCount > 0 ? pendingDriverCount : '—'}
+                          </span>
                         </div>
                       </button>
 
@@ -561,10 +504,16 @@ export default function DashboardPage() {
                             </div>
                             <div>
                               <p className="font-bold text-[#041614]">View Lost Parcel Reports</p>
-                              <p className="text-xs text-gray-400">3 cases needing follow-up</p>
+                              <p className="text-xs text-gray-400">
+                                {openLostCount === 0
+                                  ? 'No open cases'
+                                  : `${openLostCount} case${openLostCount === 1 ? '' : 's'} needing follow-up`}
+                              </p>
                             </div>
                           </div>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#E05555] shadow-sm">3</span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#E05555] shadow-sm">
+                            {openLostCount > 0 ? openLostCount : '—'}
+                          </span>
                         </div>
                       </button>
                     </div>
@@ -656,28 +605,37 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#39B5A8]/5">
-                      {activeDashboardData.shipments.map((shipment, index) => (
-                        <tr key={index} className="group transition-colors hover:bg-[#F0F9F8]/30">
-                          <td className="px-8 py-5">
-                            <p className="font-bold text-[#041614] transition-colors group-hover:text-[#39B5A8]">{shipment.store}</p>
-                            <p className="text-xs font-medium text-gray-400">{shipment.location}</p>
-                          </td>
-                          <td className="px-6 py-5 text-center font-bold text-[#1A5D56]">{`\u20B1${shipment.amount}`}</td>
-                          <td className="px-8 py-5 text-right">
-                            <span
-                              className={`inline-block whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${
-                                shipment.status === 'In Transit'
-                                  ? 'border-blue-100 bg-blue-50 text-blue-600'
-                                  : shipment.status === 'Delivered'
-                                    ? 'border-emerald-100 bg-emerald-50 text-emerald-600'
-                                    : 'border-amber-100 bg-amber-50 text-amber-600'
-                              }`}
-                            >
-                              {shipment.status}
-                            </span>
+                      {activeDashboardData.shipments.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="px-8 py-10 text-center">
+                            <p className="text-sm font-bold text-gray-400">No dispatch records found</p>
+                            <p className="text-xs text-gray-400 mt-1">Recent shipment movement will appear here.</p>
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        activeDashboardData.shipments.map((shipment, index) => (
+                          <tr key={index} className="group transition-colors hover:bg-[#F0F9F8]/30">
+                            <td className="px-8 py-5">
+                              <p className="font-bold text-[#041614] transition-colors group-hover:text-[#39B5A8]">{shipment.store}</p>
+                              <p className="text-xs font-medium text-gray-400">{shipment.location}</p>
+                            </td>
+                            <td className="px-6 py-5 text-center font-bold text-[#1A5D56]">{`\u20B1${shipment.amount}`}</td>
+                            <td className="px-8 py-5 text-right">
+                              <span
+                                className={`inline-block whitespace-nowrap rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${
+                                  shipment.status === 'In Transit'
+                                    ? 'border-blue-100 bg-blue-50 text-blue-600'
+                                    : shipment.status === 'Delivered'
+                                      ? 'border-emerald-100 bg-emerald-50 text-emerald-600'
+                                      : 'border-amber-100 bg-amber-50 text-amber-600'
+                                }`}
+                              >
+                                {shipment.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </CardContent>
@@ -701,42 +659,49 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-8">
                   <div className="space-y-4">
-                    {activeDashboardData.alerts.map((alert, index) => (
-                      <div key={`${alert.title}-${index}`} className="rounded-[1.75rem] border border-[#39B5A8]/10 bg-[#FCFEFE] p-5">
-                        <div className="flex flex-col gap-4">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="flex items-start gap-3">
-                              <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${alert.tone}`}>
-                                {alert.icon}
-                              </div>
-                              <div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <p className="font-bold text-[#041614]">{alert.title}</p>
-                                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${alert.tone}`}>
-                                    {alert.severity}
-                                  </span>
+                    {activeDashboardData.alerts.length === 0 ? (
+                      <div className="rounded-[1.75rem] border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                        <p className="text-sm font-bold text-gray-400">All clear</p>
+                        <p className="mt-1 text-xs text-gray-400">No critical alerts requiring immediate attention at this time.</p>
+                      </div>
+                    ) : (
+                      activeDashboardData.alerts.map((alert, index) => (
+                        <div key={`${alert.title}-${index}`} className="rounded-[1.75rem] border border-[#39B5A8]/10 bg-[#FCFEFE] p-5">
+                          <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="flex items-start gap-3">
+                                <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${alert.tone}`}>
+                                  {alert.icon}
                                 </div>
-                                <p className="mt-2 text-sm leading-relaxed text-gray-500">{alert.detail}</p>
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="font-bold text-[#041614]">{alert.title}</p>
+                                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${alert.tone}`}>
+                                      {alert.severity}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 text-sm leading-relaxed text-gray-500">{alert.detail}</p>
+                                </div>
                               </div>
+                              <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-[#39B5A8]/80">
+                                {alert.time}
+                              </span>
                             </div>
-                            <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-[#39B5A8]/80">
-                              {alert.time}
-                            </span>
-                          </div>
-
-                          <div className="flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => navigate(alert.actionPath)}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#39B5A8] px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#2F9D91]"
-                            >
-                              <ArrowUpRight className="h-3.5 w-3.5" />
-                              {alert.actionLabel}
-                            </button>
+  
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => navigate(alert.actionPath)}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#39B5A8] px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#2F9D91]"
+                              >
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                                {alert.actionLabel}
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -757,32 +722,39 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-8">
                   <div className="-mt-2 space-y-5">
-                    {activeDashboardData.recentActivity.map((activity, index) => (
-                      <div key={`${activity.title}-${index}`} className="flex gap-4">
-                        <div className="flex flex-col items-center">
-                          <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${activity.tone}`}>
-                            {activity.icon}
-                          </div>
-                          {index !== activeDashboardData.recentActivity.length - 1 && <div className="mt-2 h-full w-px bg-[#39B5A8]/10" />}
-                        </div>
-                        <div className="flex-1 rounded-[1.75rem] border border-[#39B5A8]/8 bg-[#FCFEFE] p-5 transition-colors hover:bg-[#F7FCFB]">
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-bold text-[#041614]">{activity.title}</p>
-                                <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${activity.tone}`}>
-                                  {activity.type}
-                                </span>
-                              </div>
-                              <p className="mt-2 text-sm leading-relaxed text-gray-500">{activity.description}</p>
-                            </div>
-                            <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-[#39B5A8]/80">
-                              {activity.time}
-                            </span>
-                          </div>
-                        </div>
+                    {activeDashboardData.recentActivity.length === 0 ? (
+                      <div className="mt-6 rounded-[1.75rem] border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                        <p className="text-sm font-bold text-gray-400">No recent activity</p>
+                        <p className="mt-1 text-xs text-gray-400">Operational events will appear here as they happen.</p>
                       </div>
-                    ))}
+                    ) : (
+                      activeDashboardData.recentActivity.map((activity, index) => (
+                        <div key={`${activity.title}-${index}`} className="flex gap-4">
+                          <div className="flex flex-col items-center">
+                            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${activity.tone}`}>
+                              {activity.icon}
+                            </div>
+                            {index !== activeDashboardData.recentActivity.length - 1 && <div className="mt-2 h-full w-px bg-[#39B5A8]/10" />}
+                          </div>
+                          <div className="flex-1 rounded-[1.75rem] border border-[#39B5A8]/8 bg-[#FCFEFE] p-5 transition-colors hover:bg-[#F7FCFB]">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="font-bold text-[#041614]">{activity.title}</p>
+                                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${activity.tone}`}>
+                                    {activity.type}
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-sm leading-relaxed text-gray-500">{activity.description}</p>
+                              </div>
+                              <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-[#39B5A8]/80">
+                                {activity.time}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -793,23 +765,29 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-8">
                   <div className="-mt-8 space-y-6">
-                    {activeDashboardData.transactions.map((trx, index) => (
-                      <div key={index} className="group flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={`rounded-2xl p-3 ${trx.status === 'In' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-                            {trx.status === 'In' ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
-                          </div>
-                          <div>
-                            <p className="font-bold text-[#041614] transition-colors group-hover:text-[#39B5A8]">{trx.person}</p>
-                            <p className="text-xs font-medium text-gray-400">{`${trx.type} \u2022 ${trx.date}`}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className={`font-bold ${trx.status === 'In' ? 'text-emerald-600' : 'text-[#041614]'}`}>{trx.amount}</p>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">{trx.id}</p>
-                        </div>
+                    {activeDashboardData.transactions.length === 0 ? (
+                      <div className="mt-12 text-center">
+                        <p className="text-sm font-bold text-gray-400">No recent transactions</p>
                       </div>
-                    ))}
+                    ) : (
+                      activeDashboardData.transactions.map((trx, index) => (
+                        <div key={index} className="group flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className={`rounded-2xl p-3 ${trx.status === 'In' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                              {trx.status === 'In' ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
+                            </div>
+                            <div>
+                              <p className="font-bold text-[#041614] transition-colors group-hover:text-[#39B5A8]">{trx.person}</p>
+                              <p className="text-xs font-medium text-gray-400">{`${trx.type} \u2022 ${trx.date}`}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-bold ${trx.status === 'In' ? 'text-emerald-600' : 'text-[#041614]'}`}>{trx.amount}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">{trx.id}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>

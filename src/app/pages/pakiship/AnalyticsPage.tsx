@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { fetchAnalyticsStats, type AnalyticsStats } from '../../lib/supabaseSchema';
 import { useNavigate } from '../../lib/router';
 import {
   TrendingUp,
@@ -54,6 +55,22 @@ export default function AnalyticsPage() {
   const [revenueBreakdown, setRevenueBreakdown] = useState<RevenueBreakdown>('Week');
   const [customStartDate, setCustomStartDate] = useState('2026-05-01');
   const [customEndDate, setCustomEndDate] = useState('2026-05-15');
+  const [liveStats, setLiveStats] = useState<AnalyticsStats>({
+    revenue: 0, delivered: 0, pending: 0, cancelled: 0, lostReports: 0,
+    shipmentVolume: [], topDrivers: [], totalDrivers: 0, onDeliveryDrivers: 0, activeNowDrivers: 0,
+    changes: {
+      revenue: null, delivered: null, pending: null, cancelled: null, lostReports: null,
+      revenueUp: true, deliveredUp: true, pendingUp: true, cancelledUp: true, lostReportsUp: true,
+    },
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchAnalyticsStats(dateRange)
+      .then((stats) => { if (isMounted) setLiveStats(stats); })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, [dateRange]);
 
   const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
 
@@ -62,139 +79,46 @@ export default function AnalyticsPage() {
     navigate('/');
   };
 
-  const dataMap: Record<AnalyticsRange, AnalyticsSummary> = {
-    "Today": {
-      revenue: "₱482K",
-      delivered: "1,240",
-      pending: "85",
-      cancelled: "12",
-      lostReports: "4",
-      chartData: [
-        { month: '08:00', revenue: 40000 },
-        { month: '10:00', revenue: 85000 },
-        { month: '12:00', revenue: 120000 },
-        { month: '14:00', revenue: 95000 },
-        { month: '16:00', revenue: 142000 },
-      ]
-    },
-    "Last 7 Days": {
-      revenue: "₱4.2M",
-      delivered: "9,840",
-      pending: "310",
-      cancelled: "45",
-      lostReports: "11",
-      chartData: [
-        { month: 'Mon', revenue: 580000 },
-        { month: 'Tue', revenue: 620000 },
-        { month: 'Wed', revenue: 710000 },
-        { month: 'Thu', revenue: 540000 },
-        { month: 'Fri', revenue: 850000 },
-        { month: 'Sat', revenue: 920000 },
-        { month: 'Sun', revenue: 450000 },
-      ]
-    },
-    "Last 30 Days": {
-      revenue: "₱18.4M",
-      delivered: "42,150",
-      pending: "842",
-      cancelled: "112",
-      lostReports: "27",
-      chartData: [
-        { month: 'Week 1', revenue: 4200000 },
-        { month: 'Week 2', revenue: 4800000 },
-        { month: 'Week 3', revenue: 5100000 },
-        { month: 'Week 4', revenue: 4300000 },
-      ]
-    },
-    "Year to Date": {
-      revenue: "₱104.2M",
-      delivered: "84,120",
-      pending: "1,204",
-      cancelled: "342",
-      lostReports: "73",
-      chartData: [
-        { month: 'Jan', revenue: 4250000 },
-        { month: 'Feb', revenue: 4850000 },
-        { month: 'Mar', revenue: 5150000 },
-        { month: 'Apr', revenue: 4900000 },
-        { month: 'May', revenue: 5800000 },
-        { month: 'Jun', revenue: 6200000 },
-        { month: 'Jul', revenue: 7100000 },
-        { month: 'Aug', revenue: 8400000 },
-        { month: 'Sep', revenue: 9200000 },
-        { month: 'Oct', revenue: 10500000 },
-        { month: 'Nov', revenue: 12100000 },
-        { month: 'Dec', revenue: 15800000 },
-      ]
-    }
+  // All stats come from Supabase — 0 when disconnected
+  const activeData = {
+    revenue: `₱${liveStats.revenue.toLocaleString('en-PH')}`,
+    delivered: liveStats.delivered.toLocaleString(),
+    pending: liveStats.pending.toLocaleString(),
+    cancelled: liveStats.cancelled.toLocaleString(),
+    lostReports: liveStats.lostReports.toLocaleString(),
+    chartData: liveStats.shipmentVolume.length > 0
+      ? liveStats.shipmentVolume
+      : [{ month: '--', revenue: 0 }],
   };
-
-  const activeData = dataMap[dateRange] || dataMap["Year to Date"];
-  const dateRanges = Object.keys(dataMap) as AnalyticsRange[];
+  const dateRanges = ['Today', 'Last 7 Days', 'Last 30 Days', 'Year to Date'] as AnalyticsRange[];
   const maxRevenue = useMemo(
-    () => Math.max(...activeData.chartData.map((dataPoint) => dataPoint.revenue)),
+    () => Math.max(1, ...activeData.chartData.map((d) => d.revenue)),
     [activeData],
   );
 
   const driverWorkforce = [
-    { type: 'Relay Drivers', count: 428, growth: '+12%', icon: <Bike className="w-5 h-5" />, sub: 'Tricycle/Jeepney' },
-    { type: 'Direct Drivers', count: 156, growth: '+5%', icon: <Truck className="w-5 h-5" />, sub: 'On-Demand' },
-    { type: 'Active Now', count: 312, growth: '78%', icon: <Activity className="w-5 h-5" />, sub: 'Live on Road' },
+    { type: 'Total Drivers', count: liveStats.totalDrivers, growth: '', icon: <Truck className="w-5 h-5" />, sub: 'All Registered' },
+    { type: 'On Delivery', count: liveStats.onDeliveryDrivers, growth: '', icon: <Bike className="w-5 h-5" />, sub: 'Currently Active' },
+    { type: 'Active Now', count: liveStats.activeNowDrivers, growth: '', icon: <Activity className="w-5 h-5" />, sub: 'Available + On Delivery' },
   ];
 
-  const topRoutes = [
-    { route: '7-Eleven Dapitan', to: 'P. Noval Hub', trips: 540, revenue: '₱142K', percentage: 92 },
-    { route: 'España Lawson', to: 'Lacson Depot', trips: 420, revenue: '₱128K', percentage: 78 },
-    { route: 'Uncle John Noval', to: 'Dapitan Ext', trips: 310, revenue: '₱98K', percentage: 64 },
-    { route: 'UST Overpass', to: 'España Boulevard', trips: 280, revenue: '₱75K', percentage: 55 },
-    { route: 'P. Campa', to: 'Lerma Street', trips: 210, revenue: '₱52K', percentage: 40 },
-  ];
+  const topRoutes: { route: string; to: string; trips: number; revenue: string; percentage: number }[] = [];
 
-  const shipmentVolume = [
-    { label: 'Mon', value: 320 },
-    { label: 'Tue', value: 410 },
-    { label: 'Wed', value: 385 },
-    { label: 'Thu', value: 492 },
-    { label: 'Fri', value: 530 },
-    { label: 'Sat', value: 455 },
-    { label: 'Sun', value: 300 },
-  ];
+  const shipmentVolume = liveStats.shipmentVolume.map((d) => ({
+    label: d.month,
+    value: d.revenue,
+  }));
 
-  const revenueTrend =
-    revenueBreakdown === 'Week'
-      ? [
-          { label: 'W1', value: 4200000 },
-          { label: 'W2', value: 4800000 },
-          { label: 'W3', value: 5100000 },
-          { label: 'W4', value: 4300000 },
-        ]
-      : [
-          { label: 'Jan', value: 12200000 },
-          { label: 'Feb', value: 13500000 },
-          { label: 'Mar', value: 14800000 },
-          { label: 'Apr', value: 15800000 },
-          { label: 'May', value: 16400000 },
-        ];
+  const revenueTrend = liveStats.shipmentVolume.map((d) => ({
+    label: d.month,
+    value: d.revenue,
+  }));
 
-  const lostParcelRate = [
-    { label: 'W1', value: 3.4 },
-    { label: 'W2', value: 2.9 },
-    { label: 'W3', value: 2.1 },
-    { label: 'W4', value: 1.8 },
-  ];
+  const lostParcelRate: { label: string; value: number }[] = [];
 
-  const deliveryTimeByRoute = [
-    { route: 'Dapitan - P. Noval', minutes: 31 },
-    { route: 'Espana - Lacson', minutes: 46 },
-    { route: 'UST - Lerma', minutes: 28 },
-    { route: 'Tayuman - Quiapo', minutes: 39 },
-  ];
+  const deliveryTimeByRoute: { route: string; minutes: number }[] = [];
 
-  const driverLeaderboard = [
-    { name: 'Arnel Cruz', completion: '98%', rating: '4.9' },
-    { name: 'Ramon Lee', completion: '94%', rating: '4.7' },
-    { name: 'Mika Santos', completion: '86%', rating: '4.3' },
-  ];
+  const driverLeaderboard = liveStats.topDrivers;
 
   const handleExport = (format: 'csv' | 'pdf' = 'csv') => {
     const headers = ["Period", "Revenue (PHP)"];
@@ -300,11 +224,41 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
-            <StatCard label="Total Revenue" value={activeData.revenue} trend="+24.2%" trendUp={true} icon={<Wallet className="w-4 h-4" />} />
-            <StatCard label="Parcels Delivered" value={activeData.delivered} trend="+12.5%" trendUp={true} icon={<PackageCheck className="w-4 h-4" />} />
-            <StatCard label="Parcels Pending" value={activeData.pending} trend="-8.1%" trendUp={true} icon={<PackagePlus className="w-4 h-4" />} />
-            <StatCard label="Parcels Cancelled" value={activeData.cancelled} trend="+1.1%" trendUp={false} icon={<PackageX className="w-4 h-4" />} />
-            <StatCard label="Open Lost Parcel Reports" value={activeData.lostReports} trend="-4.6%" trendUp={false} icon={<AlertTriangle className="w-4 h-4" />} />
+            <StatCard
+              label="Total Revenue"
+              value={activeData.revenue}
+              trend={liveStats.changes.revenue}
+              trendUp={liveStats.changes.revenueUp}
+              icon={<Wallet className="w-4 h-4" />}
+            />
+            <StatCard
+              label="Parcels Delivered"
+              value={activeData.delivered}
+              trend={liveStats.changes.delivered}
+              trendUp={liveStats.changes.deliveredUp}
+              icon={<PackageCheck className="w-4 h-4" />}
+            />
+            <StatCard
+              label="Parcels Pending"
+              value={activeData.pending}
+              trend={liveStats.changes.pending}
+              trendUp={liveStats.changes.pendingUp}
+              icon={<PackagePlus className="w-4 h-4" />}
+            />
+            <StatCard
+              label="Parcels Cancelled"
+              value={activeData.cancelled}
+              trend={liveStats.changes.cancelled}
+              trendUp={liveStats.changes.cancelledUp}
+              icon={<PackageX className="w-4 h-4" />}
+            />
+            <StatCard
+              label="Open Lost Parcel Reports"
+              value={activeData.lostReports}
+              trend={liveStats.changes.lostReports}
+              trendUp={liveStats.changes.lostReportsUp}
+              icon={<AlertTriangle className="w-4 h-4" />}
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-8">
@@ -364,7 +318,9 @@ export default function AnalyticsPage() {
                   <CardTitle className="text-xl font-black text-[#041614]">Driver Leaderboard</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 px-8 pb-8">
-                  {driverLeaderboard.map((driver, index) => (
+                  {driverLeaderboard.length === 0 ? (
+                    <p className="text-center text-sm text-gray-400 py-4 font-medium">No driver data</p>
+                  ) : driverLeaderboard.map((driver, index) => (
                     <div key={driver.name} className="flex items-center justify-between rounded-2xl bg-[#F0F9F8] p-4">
                       <div>
                         <p className="text-sm font-black text-[#041614]">{index + 1}. {driver.name}</p>
@@ -448,7 +404,9 @@ export default function AnalyticsPage() {
                 </div>
               </CardHeader>
               <CardContent className="px-8 pb-8 flex-1 overflow-y-auto custom-scrollbar space-y-6">
-                {topRoutes.map((route, index) => (
+                {topRoutes.length === 0 ? (
+                  <p className="text-center text-sm text-gray-400 py-8 font-medium">No route data available</p>
+                ) : topRoutes.map((route, index) => (
                   <div key={index} className="group cursor-pointer pr-2">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex gap-3">
@@ -544,7 +502,7 @@ export default function AnalyticsPage() {
 interface StatCardProps {
   icon: React.ReactNode;
   label: string;
-  trend: string;
+  trend: string | null;
   trendUp: boolean;
   value: string;
 }
@@ -556,10 +514,16 @@ function StatCard({ label, value, trend, trendUp, icon }: StatCardProps) {
         <div className="p-2 bg-[#F0F9F8] rounded-lg text-[#39B5A8]">
           {icon}
         </div>
-        <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${trendUp ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
-          {trendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          {trend}
-        </div>
+        {trend !== null ? (
+          <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+            {trendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            {trend}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-50 text-gray-400">
+            No prior data
+          </div>
+        )}
       </div>
       <div className="relative z-10">
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
