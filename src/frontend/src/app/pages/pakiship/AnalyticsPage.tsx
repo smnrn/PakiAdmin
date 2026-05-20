@@ -88,7 +88,7 @@ export default function AnalyticsPage() {
     lostReports: liveStats.lostReports.toLocaleString(),
     chartData: liveStats.shipmentVolume.length > 0
       ? liveStats.shipmentVolume
-      : [{ month: '--', revenue: 0 }],
+      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((m) => ({ month: m, revenue: 0 })),
   };
   const dateRanges = ['Today', 'Last 7 Days', 'Last 30 Days', 'Year to Date'] as AnalyticsRange[];
   const maxRevenue = useMemo(
@@ -104,15 +104,21 @@ export default function AnalyticsPage() {
 
   const topRoutes: { route: string; to: string; trips: number; revenue: string; percentage: number }[] = [];
 
-  const shipmentVolume = liveStats.shipmentVolume.map((d) => ({
-    label: d.month,
-    value: d.revenue,
-  }));
+  const defaultMonths = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN'];
 
-  const revenueTrend = liveStats.shipmentVolume.map((d) => ({
-    label: d.month,
-    value: d.revenue,
-  }));
+  const shipmentVolume = liveStats.shipmentVolume.length > 0
+    ? liveStats.shipmentVolume.map((d) => ({
+        label: d.month.toUpperCase(),
+        value: d.volume,
+      }))
+    : defaultMonths.map((m) => ({ label: m, value: 0 }));
+
+  const revenueTrend = liveStats.shipmentVolume.length > 0
+    ? liveStats.shipmentVolume.map((d) => ({
+        label: d.month.toUpperCase(),
+        value: d.revenue,
+      }))
+    : defaultMonths.map((m) => ({ label: m, value: 0 }));
 
   const lostParcelRate: { label: string; value: number }[] = [];
 
@@ -376,12 +382,20 @@ export default function AnalyticsPage() {
                         </p>
                       </div>
                       <div className="w-full flex flex-col justify-end h-full relative">
-                        <div 
-                          className="w-full rounded-t-2xl transition-all duration-700 ease-out hover:scale-x-105 cursor-pointer shadow-lg shadow-[#39B5A8]/5 bg-gradient-to-t from-[#39B5A8] via-[#39B5A8]/80 to-[#50E3C2]"
-                          style={{ height: `${(data.revenue / maxRevenue) * 100}%` }}
-                        >
-                          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl"></div>
-                        </div>
+                        {data.revenue > 0 ? (
+                          <div 
+                            className="w-full rounded-t-2xl transition-all duration-700 ease-out hover:scale-x-105 cursor-pointer shadow-lg shadow-[#39B5A8]/5 bg-gradient-to-t from-[#39B5A8] via-[#39B5A8]/80 to-[#50E3C2]"
+                            style={{ height: `${(data.revenue / maxRevenue) * 100}%` }}
+                          >
+                            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl"></div>
+                          </div>
+                        ) : (
+                          <div 
+                            className="w-full rounded-t-lg bg-[#39B5A8]/5 border border-dashed border-[#39B5A8]/20 transition-all duration-500"
+                            style={{ height: '4px' }}
+                            title="No data"
+                          />
+                        )}
                       </div>
                       <p className="text-[11px] font-black text-[#1A5D56]/60 tracking-wider uppercase group-hover:text-[#39B5A8] transition-colors">{data.month}</p>
                     </div>
@@ -542,18 +556,26 @@ interface ChartDatum {
 }
 
 function SimpleBars({ data, suffix = '', valuePrefix = '' }: { data: ChartDatum[]; suffix?: string; valuePrefix?: string }) {
-  const maxValue = Math.max(...data.map((item) => item.value));
+  const maxValue = Math.max(1, ...data.map((item) => item.value));
 
   return (
     <div className="flex h-56 items-end gap-4">
       {data.map((item) => (
         <div key={item.label} className="flex flex-1 flex-col items-center gap-3">
           <div className="flex h-44 w-full items-end">
-            <div
-              className="w-full rounded-t-2xl bg-gradient-to-t from-[#39B5A8] to-[#50E3C2] shadow-lg shadow-[#39B5A8]/10"
-              style={{ height: `${Math.max(12, (item.value / maxValue) * 100)}%` }}
-              title={`${valuePrefix}${item.value}${suffix}`}
-            />
+            {item.value > 0 ? (
+              <div
+                className="w-full rounded-t-2xl bg-gradient-to-t from-[#39B5A8] to-[#50E3C2] shadow-lg shadow-[#39B5A8]/10 transition-all duration-500"
+                style={{ height: `${Math.max(12, (item.value / maxValue) * 100)}%` }}
+                title={`${valuePrefix}${item.value}${suffix}`}
+              />
+            ) : (
+              <div
+                className="w-full rounded-t-lg bg-[#39B5A8]/5 border border-dashed border-[#39B5A8]/20 transition-all duration-500"
+                style={{ height: '4px' }}
+                title="No data"
+              />
+            )}
           </div>
           <span className="text-[10px] font-black uppercase tracking-wider text-[#1A5D56]/60">{item.label}</span>
         </div>
