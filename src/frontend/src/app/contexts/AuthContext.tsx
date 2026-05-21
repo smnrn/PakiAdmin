@@ -1,7 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { getAccountRoleLabel, getDisplayNameForEmail, getSampleAccountRole, type AccountRole } from '../lib/sampleAccounts';
+import { supabase } from '../lib/supabase';
+import type { AccountRole } from '../lib/sampleAccounts';
+import { getAccountRoleLabel } from '../lib/sampleAccounts';
 
 interface User {
   id: string;
@@ -14,8 +16,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, app: 'pakiship' | 'pakipark' | 'pakiadmin') => Promise<void>;
-  signup: (email: string, password: string, name: string, app: 'pakiship' | 'pakipark' | 'pakiadmin') => Promise<void>;
+  login: (email: string, password: string, app: 'pakiship' | 'pakipark' | 'pakiadmin') => Promise<AccountRole>;
   logout: () => void;
 }
 
@@ -24,32 +25,57 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = async (email: string, password: string, app: 'pakiship' | 'pakipark' | 'pakiadmin') => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const role = app === 'pakiadmin' ? getSampleAccountRole(email) : undefined;
+  /**
+   * login
+   * ─────
+   * Authenticates against account.admin_accounts via the fn_admin_login RPC.
+   * Throws an Error with a user-facing message on any failure so the login
+   * page can display it without crashing.
+   */
+  const login = async (
+    email: string,
+    password: string,
+    app: 'pakiship' | 'pakipark' | 'pakiadmin',
+  ) => {
+    const { data, error } = await supabase.rpc('fn_admin_login', {
+      p_email: email.trim().toLowerCase(),
+      p_password: password,
+    }, { schema: 'account' });
+
+    if (error) {
+      console.error('fn_admin_login error:', error.message);
+      throw new Error('Authorization failed. Please check your credentials.');
+    }
+
+    // fn_admin_login returns an array; a valid login returns exactly 1 row
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      throw new Error('Invalid email or password.');
+    }
+
+    const account = data[0] as {
+      r_id: number;
+      r_email: string;
+      r_full_name: string;
+      r_role: string;
+      r_is_active: boolean;
+    };
+
+    if (!account.r_is_active) {
+      throw new Error('This account has been deactivated. Contact your system administrator.');
+    }
+
+    const role = (account.r_role === 'super-admin' ? 'super-admin' : 'admin') as AccountRole;
 
     setUser({
-      id: Math.random().toString(36).substr(2, 9),
-      email,
-      name: getDisplayNameForEmail(email, email.split('@')[0]),
+      id: String(account.r_id),
+      email: account.r_email,
+      name: account.r_full_name,
       app,
       role,
-      roleLabel: role ? getAccountRoleLabel(role) : undefined,
+      roleLabel: getAccountRoleLabel(role),
     });
-  };
 
-  const signup = async (email: string, password: string, name: string, app: 'pakiship' | 'pakipark' | 'pakiadmin') => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setUser({
-      id: Math.random().toString(36).substr(2, 9),
-      email,
-      name: getDisplayNameForEmail(email, name),
-      app,
-      role: app === 'pakiadmin' ? 'admin' : undefined,
-      roleLabel: app === 'pakiadmin' ? 'Admin' : undefined,
-    });
+    return role;
   };
 
   const logout = () => {
@@ -57,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

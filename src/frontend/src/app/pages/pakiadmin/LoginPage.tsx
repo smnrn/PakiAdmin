@@ -1,17 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "../../lib/router";
 import { useAuth } from "../../contexts/AuthContext";
-import { 
-  Database, 
-  Eye, 
-  EyeOff, 
-  Lock, 
-  Terminal,
+import {
+  Eye,
+  EyeOff,
+  Lock,
   Mail,
   Check,
   AlertCircle,
   Phone,
-  Cpu,
   AppWindow,
   Activity,
   Workflow,
@@ -20,7 +17,6 @@ import {
 
 import { pakiAdminLogo } from '../../lib/assets';
 import { isTwoFactorEnabledForEmail } from '../../lib/twoFactor';
-import { getSampleAccountRole } from '../../lib/sampleAccounts';
 
 export default function PakiAdminLogin() {
   const navigate = useNavigate();
@@ -43,12 +39,7 @@ export default function PakiAdminLogin() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
 
-  const handleUseSampleAccount = (email: string) => {
-    setIdentifier(email);
-    setPassword("Admin@123");
-    setError("");
-    setTwoFactorError("");
-  };
+
 
   useEffect(() => {
     if (/[a-zA-Z@]/.test(identifier)) {
@@ -72,18 +63,15 @@ export default function PakiAdminLogin() {
   const completeLogin = async () => {
     setIsLoading(true);
     try {
-      const role = getSampleAccountRole(identifier);
-
+      const role = await login(identifier, password, 'pakiadmin');
       if (role === 'super-admin') {
-        await login(identifier, password, 'pakiadmin');
         navigate("/pakiadmin/super-admin");
-        return;
+      } else {
+        navigate("/pakiship/dashboard");
       }
-
-      await login(identifier, password, 'pakiship');
-      navigate("/pakiship/dashboard");
-    } catch (err) {
-      setError("Authorization failed. Please check your credentials.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Authorization failed. Please check your credentials.";
+      setError(message);
       setIsLoading(false);
     }
   };
@@ -218,20 +206,7 @@ export default function PakiAdminLogin() {
                 </p>
               </div>
 
-              <div className="mb-6 grid gap-3 sm:grid-cols-2">
-                <SampleAccountButton
-                  active={identifier.trim().toLowerCase() === "superadmin@gmail.com"}
-                  email="superadmin@gmail.com"
-                  label="Super Admin"
-                  onClick={() => handleUseSampleAccount("superadmin@gmail.com")}
-                />
-                <SampleAccountButton
-                  active={identifier.trim().toLowerCase() === "admin@gmail.com"}
-                  email="admin@gmail.com"
-                  label="Admin"
-                  onClick={() => handleUseSampleAccount("admin@gmail.com")}
-                />
-              </div>
+
 
               <form onSubmit={handleLogin} className="space-y-5">
                 {error && (
@@ -321,17 +296,7 @@ export default function PakiAdminLogin() {
                 </button>
               </form>
 
-              <div className="mt-8 pt-8 border-t border-[#dec0f1]/50 flex items-center justify-center gap-2">
-                <span className="text-sm font-bold text-[#2c0735]/40">
-                  Don't have an account?
-                </span>
-                <button 
-                  onClick={() => navigate("/pakiadmin/signup")}
-                  className="text-[#2c0735] font-black text-sm hover:underline underline-offset-4 decoration-2 transition-all"
-                >
-                  Create account
-                </button>
-              </div>
+
             </div>
           </div>
         </div>
@@ -493,33 +458,7 @@ export default function PakiAdminLogin() {
   );
 }
 
-function SampleAccountButton({
-  active,
-  email,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  email: string;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-2xl border px-4 py-3 text-left transition-all ${
-        active
-          ? "border-[#2c0735] bg-[#2c0735] text-white shadow-lg shadow-[#2c0735]/15"
-          : "border-[#dec0f1] bg-[#dec0f1]/10 text-[#2c0735] hover:bg-[#dec0f1]/20"
-      }`}
-    >
-      <p className="text-xs font-black uppercase tracking-[0.16em]">{label}</p>
-      <p className={`mt-1 text-xs font-bold ${active ? "text-white/75" : "text-[#2c0735]/55"}`}>{email}</p>
-      <p className={`mt-1 text-[11px] font-semibold ${active ? "text-white/65" : "text-[#2c0735]/45"}`}>Password: Admin@123</p>
-    </button>
-  );
-}
+
 
 function AdminFeatureCard({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (

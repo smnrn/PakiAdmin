@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
-  fetchDwellTimes,
-  fetchVolumeForecast,
-  fetchActionableInsights,
-  fetchOnlineDriverCount,
-  type HubDwellTime,
-  type HubVolumeForecast,
-  type ActionableInsight,
+  fetchHubUtilization,
+  fetchHubBypassForecast,
+  fetchPrescriptiveInsights,
+  type HubUtilization,
+  type HubBypassForecast,
+  type PrescriptiveInsight,
 } from '../../lib/supabaseSchema';
 import { useNavigate } from '../../lib/router';
 import {
@@ -32,27 +31,24 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  // BI data state
-  const [dwellTimes, setDwellTimes] = useState<HubDwellTime[]>([]);
-  const [forecasts, setForecasts] = useState<HubVolumeForecast[]>([]);
-  const [insights, setInsights] = useState<ActionableInsight[]>([]);
-  const [onlineDrivers, setOnlineDrivers] = useState(0);
+  // BI data state — wired to vw_pakiship_* views
+  const [utilization, setUtilization] = useState<HubUtilization[]>([]);
+  const [bypassForecast, setBypassForecast] = useState<HubBypassForecast[]>([]);
+  const [insights, setInsights] = useState<PrescriptiveInsight[]>([]);
 
   const placeholderName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
 
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-      const [dw, vf, ai, dc] = await Promise.allSettled([
-        fetchDwellTimes(),
-        fetchVolumeForecast(),
-        fetchActionableInsights(),
-        fetchOnlineDriverCount(),
+      const [util, forecast, prescriptive] = await Promise.allSettled([
+        fetchHubUtilization(),
+        fetchHubBypassForecast(),
+        fetchPrescriptiveInsights(),
       ]);
-      if (dw.status === 'fulfilled') setDwellTimes(dw.value);
-      if (vf.status === 'fulfilled') setForecasts(vf.value);
-      if (ai.status === 'fulfilled') setInsights(ai.value);
-      if (dc.status === 'fulfilled') setOnlineDrivers(dc.value);
+      if (util.status === 'fulfilled') setUtilization(util.value);
+      if (forecast.status === 'fulfilled') setBypassForecast(forecast.value);
+      if (prescriptive.status === 'fulfilled') setInsights(prescriptive.value);
       setLastRefresh(new Date());
     } finally {
       setIsLoading(false);
@@ -152,7 +148,7 @@ export default function DashboardPage() {
                 Prescriptive Logistics Command
               </h1>
               <p className="text-[#1A5D56] opacity-70 font-medium italic mt-1">
-                Autonomous orchestration of driver incentives & route modifications to prevent facility deadlocks.
+                Autonomous orchestration of driver incentives &amp; route modifications to prevent facility deadlocks.
               </p>
             </div>
 
@@ -162,6 +158,7 @@ export default function DashboardPage() {
               </span>
               <button
                 type="button"
+                id="refresh-dashboard-btn"
                 onClick={loadAllData}
                 disabled={isLoading}
                 className="inline-flex items-center gap-2 rounded-2xl bg-[#41B5AB] px-5 py-3 font-bold text-white shadow-lg shadow-[#39B5A8]/20 transition-all hover:bg-[#2F9D91] disabled:opacity-50"
@@ -174,16 +171,17 @@ export default function DashboardPage() {
 
           {/* ── Top Row: Northstar Metrics ──────────────────────────── */}
           <NorthstarLogisticsCards
-            forecasts={forecasts}
-            dwellTimes={dwellTimes}
-            onlineDrivers={onlineDrivers}
+            utilization={utilization}
+            bypassForecast={bypassForecast}
             isLoading={isLoading}
           />
 
           {/* ── Middle Row: Charts ──────────────────────────────────── */}
           <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
-            <DwellTimeChart data={dwellTimes} isLoading={isLoading} />
-            <VolumeForecastChart data={forecasts} isLoading={isLoading} />
+            {/* Descriptive Bar Chart — Hub Utilization Rate */}
+            <DwellTimeChart data={utilization} isLoading={isLoading} />
+            {/* Predictive Area Chart — Bypass Lane Forecast */}
+            <VolumeForecastChart data={bypassForecast} isLoading={isLoading} />
           </div>
 
           {/* ── Bottom Row: Prescriptive Actuations ─────────────────── */}

@@ -1610,18 +1610,146 @@ export async function fetchOnlineDriverCount(): Promise<number> {
 export async function executeSurgeAction(
   locationId: string,
   threat: string,
-  action: string
+  action: string,
+  platform: string = 'pakiship'
 ): Promise<string | null> {
   try {
     const { data, error } = await supabase.rpc('fn_execute_surge_action', {
       p_location_id: locationId,
       p_threat: threat,
       p_action: action,
+      p_platform: platform,
     });
     if (error) throw error;
     return data as string;
   } catch (err) {
     console.error('executeSurgeAction error:', err);
     return null;
+  }
+}
+
+// ─── Northstar BI: Hub Utilization (vw_pakiship_descriptive) ─────────────────
+
+export interface HubUtilization {
+  hub_id: string;
+  hub_name: string;
+  capacity: number;
+  current_stored: number;
+  sla_breach_count: number;
+  total_parcels: number;
+  util_pct: number;
+  relay_count: number;
+  direct_count: number;
+  relay_pct: number;
+  direct_pct: number;
+  sla_ok_pct: number;
+  avg_network_util_pct: number;
+}
+
+export async function fetchHubUtilization(): Promise<HubUtilization[]> {
+  try {
+    const { data, error } = await supabase
+      .from('vw_pakiship_descriptive')
+      .select('*');
+    if (error) throw error;
+    return (data ?? []).map((row): HubUtilization => ({
+      hub_id: row.hub_id ?? '',
+      hub_name: row.hub_name ?? '',
+      capacity: Number(row.capacity ?? 100),
+      current_stored: Number(row.current_stored ?? 0),
+      sla_breach_count: Number(row.sla_breach_count ?? 0),
+      total_parcels: Number(row.total_parcels ?? 0),
+      util_pct: Number(row.util_pct ?? 0),
+      relay_count: Number(row.relay_count ?? 0),
+      direct_count: Number(row.direct_count ?? 0),
+      relay_pct: Number(row.relay_pct ?? 0),
+      direct_pct: Number(row.direct_pct ?? 0),
+      sla_ok_pct: Number(row.sla_ok_pct ?? 100),
+      avg_network_util_pct: Number(row.avg_network_util_pct ?? 0),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─── Northstar BI: Bypass Forecast (vw_pakiship_predictive) ──────────────────
+
+export interface HubBypassForecast {
+  hub_id: string;
+  hub_name: string;
+  capacity: number;
+  current_stored: number;
+  forecast_4h: number;
+  forecast_24h: number;
+  forecast_4h_pct: number;
+  forecast_24h_pct: number;
+}
+
+export async function fetchHubBypassForecast(): Promise<HubBypassForecast[]> {
+  try {
+    const { data, error } = await supabase
+      .from('vw_pakiship_predictive')
+      .select('*');
+    if (error) throw error;
+    return (data ?? []).map((row): HubBypassForecast => ({
+      hub_id: row.hub_id ?? '',
+      hub_name: row.hub_name ?? '',
+      capacity: Number(row.capacity ?? 100),
+      current_stored: Number(row.current_stored ?? 0),
+      forecast_4h: Number(row.forecast_4h ?? 0),
+      forecast_24h: Number(row.forecast_24h ?? 0),
+      forecast_4h_pct: Number(row.forecast_4h_pct ?? 0),
+      forecast_24h_pct: Number(row.forecast_24h_pct ?? 0),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ─── Northstar BI: Prescriptive Actions (vw_pakiship_prescriptive) ───────────
+
+export interface PrescriptiveInsight {
+  hub_id: string;
+  hub_name: string;
+  util_pct: number;
+  sla_ok_pct: number;
+  relay_pct: number;
+  direct_pct: number;
+  current_stored: number;
+  capacity: number;
+  sla_breach_count: number;
+  forecast_4h_pct: number;
+  forecast_24h_pct: number;
+  forecast_4h: number;
+  forecast_24h: number;
+  prescriptive_action: string;
+  severity: 'CRITICAL' | 'WARNING' | 'STABLE';
+}
+
+export async function fetchPrescriptiveInsights(): Promise<PrescriptiveInsight[]> {
+  try {
+    const { data, error } = await supabase
+      .from('vw_pakiship_prescriptive')
+      .select('*');
+    if (error) throw error;
+    return (data ?? []).map((row): PrescriptiveInsight => ({
+      hub_id: row.hub_id ?? '',
+      hub_name: row.hub_name ?? '',
+      util_pct: Number(row.util_pct ?? 0),
+      sla_ok_pct: Number(row.sla_ok_pct ?? 100),
+      relay_pct: Number(row.relay_pct ?? 0),
+      direct_pct: Number(row.direct_pct ?? 0),
+      current_stored: Number(row.current_stored ?? 0),
+      capacity: Number(row.capacity ?? 100),
+      sla_breach_count: Number(row.sla_breach_count ?? 0),
+      forecast_4h_pct: Number(row.forecast_4h_pct ?? 0),
+      forecast_24h_pct: Number(row.forecast_24h_pct ?? 0),
+      forecast_4h: Number(row.forecast_4h ?? 0),
+      forecast_24h: Number(row.forecast_24h ?? 0),
+      prescriptive_action: row.prescriptive_action ?? 'Stable (Near 75% Target).',
+      severity: row.severity ?? 'STABLE',
+    }));
+  } catch {
+    return [];
   }
 }
