@@ -12,6 +12,8 @@ import {
   Users,
   Car,
   ClipboardCheck,
+  FileCheck,
+  UserPlus,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,6 +29,8 @@ interface PakiParkSidebarProps {
     | 'analytics'
     | 'user-acceptance'
     | 'reports'
+    | 'documents'
+    | 'accounts'
     | 'profile'
     | 'settings';
 }
@@ -51,6 +55,10 @@ export default function PakiParkSidebar({ activeTab }: PakiParkSidebarProps) {
     { id: 'analytics', icon: TrendingUp, label: 'Analytics', path: '/pakipark/analytics' },
     ...(isSuperAdmin ? [{ id: 'user-acceptance', icon: ClipboardCheck, label: 'User Acceptance', path: '/pakipark/user-acceptance' }] : []),
     { id: 'reports', icon: TrendingUp, label: 'Reports', path: '/pakipark/reports' },
+    ...(isSuperAdmin ? [
+      { id: 'documents', icon: FileCheck, label: 'Document Review', path: '/pakipark/documents' },
+      { id: 'accounts', icon: UserPlus, label: 'Account Management', path: '/pakipark/accounts' },
+    ] : []),
   ];
 
   const systemItems = [

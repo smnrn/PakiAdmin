@@ -109,20 +109,20 @@ export default function SettingsPage() {
     const fetchMembers = async () => {
       setIsLoading(true);
       const { supabase } = await import('../../lib/supabase');
-      const { data, error } = await supabase.schema('account').from('admin_accounts').select('*, profiles:user_id(full_name)');
-      
+      // Fetch admin team from account.profiles joined with admin_accounts via RPC
+      const { data, error } = await supabase.schema('account').rpc('get_staff_accounts');
       if (!error && data) {
-        const mappedUsers = data.map((admin: any) => ({
-          id: admin.id,
-          name: admin.profiles?.full_name || 'Unknown User',
-          email: admin.email || 'N/A',
-          role: admin.role === 'super-admin' ? 'Super Admin' : (admin.role === 'admin' ? 'Full Access' : 'View Only'),
-          status: 'Active' as 'Active' | 'Inactive'
+        const mappedUsers = (data as any[]).map((u: any) => ({
+          id: u.id,
+          name: u.full_name || 'Unknown',
+          email: u.email || 'N/A',
+          role: u.role === 'business_partner' ? 'Business Partner' : u.role === 'teller' ? 'Teller' : 'Staff',
+          status: (u.is_verified ? 'Active' : 'Inactive') as 'Active' | 'Inactive',
         }));
         setUsers(mappedUsers);
       }
       setIsLoading(false);
-    }
+    };
     fetchMembers();
   }, []);
 

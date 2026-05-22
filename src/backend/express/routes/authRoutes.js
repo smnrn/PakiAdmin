@@ -6,6 +6,7 @@ const { protect }  = require('../middleware/auth');
 const {
   registerCustomer,
   registerAdmin,
+  registerStaff,
   login,
   refresh,
   logout,
@@ -28,6 +29,15 @@ router.post('/register/admin', [
   body('accessCode').notEmpty().withMessage('Admin access code is required'),
   validate,
 ], registerAdmin);
+
+// POST /api/auth/register/staff
+router.post('/register/staff', [
+  body('name').trim().notEmpty().withMessage('Name is required'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('role').notEmpty().withMessage('Role is required'),
+  validate,
+], registerStaff);
 
 // POST /api/auth/login
 router.post('/login', [

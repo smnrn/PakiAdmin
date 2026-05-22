@@ -25,7 +25,6 @@ import { Input } from '../../components/ui/input';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 function readStoredValue(key: string, fallback: string) {
   if (typeof window === 'undefined') {
@@ -39,7 +38,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const sampleDisplayName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
+  const sampleDisplayName = (user?.name || 'Admin');
   const sampleEmail = user?.email || 'juandelacruz@pakiadmin.com';
 
   // --- STATE MANAGEMENT ---
@@ -57,14 +56,35 @@ export default function ProfilePage() {
   });
 
   const [formData, setFormData] = useState({
-    adminId: readStoredValue('pakipark_adminId', 'ADM-2026-1001'),
-    name: getDisplayNameForEmail(user?.email, readStoredValue('pakipark_name', sampleDisplayName)),
-    email: user?.email || readStoredValue('pakipark_email', sampleEmail),
-    phone: readStoredValue('pakipark_phone', '09123456789'),
-    address: readStoredValue('pakipark_address', 'Greenbelt 3, Makati City, Manila'),
-    dob: readStoredValue('pakipark_dob', '2005-06-01'),
+    adminId: 'Loading...',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: '',
+    address: '',
+    dob: '',
     password: '••••••••••••', 
   });
+
+  useEffect(() => {
+    if (user?.id) {
+      const fetchProfile = async () => {
+        const { supabase } = await import('../../lib/supabase');
+        const { data } = await supabase.schema('account').from('profiles').select('*').eq('id', user.id).single();
+        if (data) {
+          setFormData(prev => ({
+            ...prev,
+            adminId: data.id.substring(0, 13),
+            name: data.full_name || user.name || '',
+            email: user.email || '',
+            phone: data.phone_number || '',
+            address: data.address || '',
+            dob: data.dob || '',
+          }));
+        }
+      }
+      fetchProfile();
+    }
+  }, [user]);
 
   const [passwordData, setPasswordData] = useState({ current: '', new: '' });
   const [passwordErrors, setPasswordErrors] = useState({
@@ -99,19 +119,29 @@ export default function ProfilePage() {
     navigate('/');
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const loadingToast = toast.loading('Saving changes...');
 
-    setTimeout(() => {
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key !== 'password') localStorage.setItem(`pakipark_${key}`, value);
-      });
-      window.dispatchEvent(new Event('storage'));
-      toast.dismiss(loadingToast);
-      toast.success('Profile updated successfully!');
-      setIsEditing(false);
-    }, 800);
+    if (user?.id) {
+      const { supabase } = await import('../../lib/supabase');
+      const { error } = await supabase.schema('account').from('profiles').update({
+        full_name: formData.name,
+        phone_number: formData.phone,
+        address: formData.address,
+        dob: formData.dob
+      }).eq('id', user.id);
+
+      if (error) {
+        toast.dismiss(loadingToast);
+        toast.error('Failed to update profile');
+        return;
+      }
+    }
+
+    toast.dismiss(loadingToast);
+    toast.success('Profile updated successfully!');
+    setIsEditing(false);
   };
 
   const handleUpdatePassword = () => {
@@ -395,3 +425,4 @@ function ValidationCheck({ label, isValid }: { label: string; isValid: boolean }
     </div>
   );
 }
+

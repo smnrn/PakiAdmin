@@ -31,13 +31,13 @@ const { logUserLogin, logUserRegistered } = require('./logService');
  */
 async function upsertProfile(authId, defaults = {}) {
   const [rows] = await sequelize.query(
-    `INSERT INTO account.users ("authId", name, email, phone, role, "isVerified", "createdAt", "updatedAt")
-     VALUES (:authId, :name, :email, :phone, :role, :isVerified, now(), now())
-     ON CONFLICT ("authId") DO UPDATE
-       SET name        = EXCLUDED.name,
+    `INSERT INTO account.profiles (id, full_name, email, phone, role, is_verified, created_at, location_id)
+     VALUES (:authId, :name, :email, :phone, :role, :isVerified, now(), :locationId)
+     ON CONFLICT (id) DO UPDATE
+       SET full_name   = EXCLUDED.full_name,
            email       = EXCLUDED.email,
-           phone       = COALESCE(EXCLUDED.phone, account.users.phone),
-           "updatedAt" = now()
+           phone       = COALESCE(EXCLUDED.phone, account.profiles.phone),
+           location_id = EXCLUDED.location_id
      RETURNING *`,
     {
       replacements: {
@@ -47,6 +47,7 @@ async function upsertProfile(authId, defaults = {}) {
         phone:      defaults.phone      || '',
         role:       defaults.role       || 'customer',
         isVerified: defaults.isVerified ?? false,
+        locationId: defaults.location_id || null,
       },
     },
   );
@@ -58,7 +59,7 @@ async function upsertProfile(authId, defaults = {}) {
  */
 async function getProfileByAuthId(authId) {
   const [rows] = await sequelize.query(
-    `SELECT * FROM account.users WHERE "authId" = :authId LIMIT 1`,
+    `SELECT * FROM account.profiles WHERE id = :authId LIMIT 1`,
     { replacements: { authId } },
   );
   return rows[0] || null;
@@ -102,7 +103,7 @@ const registerCustomer = async ({ name, email, phone, password }) => {
   return {
     _id:    String(profile.id),
     authId: authUser.id,
-    name:   profile.name,
+    name:   profile.full_name,
     email:  profile.email,
     role:   profile.role,
     token:  session.session.access_token,
@@ -153,11 +154,53 @@ const registerAdmin = async ({ name, email, phone, password, accessCode, address
   return {
     _id:    String(profile.id),
     authId: authUser.id,
-    name:   profile.name,
+    name:   profile.full_name,
     email:  profile.email,
     role:   profile.role,
     token:  session.session.access_token,
     refreshToken: session.session.refresh_token,
+  };
+};
+
+// ── Register Staff ────────────────────────────────────────────────────────────
+
+const registerStaff = async ({ name, email, phone, password, role, location_id }) => {
+  const supabase = getSupabaseClient();
+
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name, phone, role },
+  });
+
+  if (authError) throw new Error(authError.message);
+
+  const authUser = authData.user;
+
+  // Use the existing RPC to ensure all profile and location logic is handled perfectly
+  const { error: rpcError } = await supabase.schema('account').rpc('upsert_staff_profile', {
+    p_id: authUser.id,
+    p_full_name: name,
+    p_email: authUser.email,
+    p_phone: phone || null,
+    p_role: role,
+    p_is_verified: true,
+    p_location_id: location_id || null,
+  });
+
+  if (rpcError) {
+    throw new Error(rpcError.message);
+  }
+
+  logUserRegistered({ userId: authUser.id, role });
+
+  return {
+    _id:    authUser.id,
+    authId: authUser.id,
+    name:   name,
+    email:  authUser.email,
+    role:   role,
   };
 };
 
@@ -205,10 +248,10 @@ function buildResponse(profile, authId, session) {
   return {
     _id:          String(profile.id),
     authId,
-    name:         profile.name,
+    name:         profile.full_name || profile.name,
     email:        profile.email,
     role:         profile.role,
-    profilePicture: profile.profilePicture || null,
+    profilePicture: profile.profile_picture || profile.profilePicture || null,
     token:        session.access_token,
     refreshToken: session.refresh_token,
     expiresAt:    session.expires_at,
@@ -237,4 +280,4 @@ const logoutUser = async ({ refreshToken: rt }) => {
   return { success: true };
 };
 
-module.exports = { registerCustomer, registerAdmin, loginUser, refreshToken, logoutUser };
+module.exports = { registerCustomer, registerAdmin, registerStaff, loginUser, refreshToken, logoutUser };

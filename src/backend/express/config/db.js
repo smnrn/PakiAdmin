@@ -230,7 +230,7 @@ const connectDB = async () => {
 
   } catch (error) {
     console.error(`❌  PostgreSQL Error: ${error.message}`);
-    process.exit(1);
+    console.warn(`⚠️  Backend will continue running, but endpoints relying on Sequelize will fail.`);
   }
 };
 

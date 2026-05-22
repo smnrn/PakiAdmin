@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from '../../lib/router';
 import {
   Settings,
@@ -22,7 +22,6 @@ import { NotificationMenuButton } from '../../components/settings/NotificationMe
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
 import { NotificationPreferencesPanel } from '../../components/settings/NotificationPreferencesPanel';
 import { TwoFactorAuthPanel } from '../../components/settings/TwoFactorAuthPanel';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 interface UserRecord {
   email: string;
@@ -101,14 +100,31 @@ export default function SettingsPage() {
   const [requestToReject, setRequestToReject] = useState<AdminRequestRecord | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const roleOptions = ["No Access", "View Only", "Limited Access", "Full Access", "Super Admin"];
-  const displayName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
+  const displayName = (user?.name || 'Admin');
 
-  const [users, setUsers] = useState<UserRecord[]>([
-    { id: 1, name: displayName, email: user?.email || "juandelacruz@pakiadmin.ph", role: "Super Admin", status: "Active" },
-    { id: 2, name: "Andrea Go", email: "andreago@pakiadmin.ph", role: "Full Access", status: "Active" },
-    { id: 3, name: "Sam Delos Reyes", email: "samdelosreyes@pakiadmin.ph", role: "View Only", status: "Inactive" },
-    { id: 4, name: "Bianca Santiago", email: "biancasantiago@pakiadmin.ph", role: "Limited Access", status: "Active" },
-  ]);
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      setIsLoading(true);
+      const { supabase } = await import('../../lib/supabase');
+      // Fetch admin team from account.profiles joined with admin_accounts via RPC
+      const { data, error } = await supabase.schema('account').rpc('get_staff_accounts');
+      if (!error && data) {
+        const mappedUsers = (data as any[]).map((u: any) => ({
+          id: u.id,
+          name: u.full_name || 'Unknown',
+          email: u.email || 'N/A',
+          role: u.role === 'business_partner' ? 'Business Partner' : u.role === 'teller' ? 'Teller' : 'Staff',
+          status: (u.is_verified ? 'Active' : 'Inactive') as 'Active' | 'Inactive',
+        }));
+        setUsers(mappedUsers);
+      }
+      setIsLoading(false);
+    };
+    fetchMembers();
+  }, []);
 
   // --- ACTIONS ---
   const triggerSuccess = (msg: string) => {
@@ -637,3 +653,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

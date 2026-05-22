@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useNavigate } from "../../lib/router";
 import {
   User,
@@ -26,7 +27,7 @@ import {
 
 import { pakiAdminLogo, pakiShipLogo, pakiParkLogo } from '../../lib/assets';
 import { useAuth } from "../../contexts/AuthContext";
-import { getDisplayNameForEmail } from "../../lib/sampleAccounts";
+
 
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
@@ -118,7 +119,7 @@ export default function SuperAdminDashboardPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAppSelectorModal, setShowAppSelectorModal] = useState(false);
 
-  const placeholderName = getDisplayNameForEmail(user?.email, "Super Admin");
+  const placeholderName = user?.name || "Super Admin";
 
   const handleLogout = () => {
     navigate('/pakiadmin/login');
@@ -1010,8 +1011,8 @@ export default function SuperAdminDashboardPage() {
               {/* App cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-8">
                 {/* PakiShip */}
-                <button
-                  onClick={() => { setShowAppSelectorModal(false); navigate('/pakiship/dashboard'); }}
+                <Link
+                  href="/pakiship/dashboard"
                   className="group relative flex flex-col items-start text-left p-7 rounded-[2rem] border-2 border-[#300066]/10 bg-gradient-to-br from-white to-[#f4f9ff] hover:border-[#0f766e]/40 hover:from-[#ecfffb] hover:to-[#d0f8f2] hover:shadow-xl hover:shadow-[#14b8a6]/20 transition-all duration-300 overflow-hidden"
                 >
                   {/* bg glyph */}
@@ -1040,11 +1041,11 @@ export default function SuperAdminDashboardPage() {
                     <span>Enter Dashboard</span>
                     <span className="text-lg leading-none">→</span>
                   </div>
-                </button>
+                </Link>
 
                 {/* PakiPark */}
-                <button
-                  onClick={() => { setShowAppSelectorModal(false); navigate('/pakipark/dashboard'); }}
+                <Link
+                  href="/pakipark/dashboard"
                   className="group relative flex flex-col items-start text-left p-7 rounded-[2rem] border-2 border-[#300066]/10 bg-gradient-to-br from-white to-[#fdf4ff] hover:border-[#7b2cbf]/30 hover:from-[#fbf5ff] hover:to-[#f0e0ff] hover:shadow-xl hover:shadow-[#6a16b8]/15 transition-all duration-300 overflow-hidden"
                 >
                   {/* bg glyph */}
@@ -1073,7 +1074,7 @@ export default function SuperAdminDashboardPage() {
                     <span>Enter Dashboard</span>
                     <span className="text-lg leading-none">→</span>
                   </div>
-                </button>
+                </Link>
               </div>
 
               {/* Footer note */}

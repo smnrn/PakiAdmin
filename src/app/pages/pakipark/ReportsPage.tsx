@@ -62,8 +62,8 @@ export default function ReportsPage() {
   React.useEffect(() => {
     async function fetchReports() {
       const { supabase } = await import('../../lib/supabase');
-      const { data: bookings } = await supabase.schema('reservation').from('bookings').select('*');
-      const { data: locs } = await supabase.schema('parking_lot').from('locations').select('*');
+      const { data: bookings } = await supabase.schema('reservation').rpc('get_bookings_with_users');
+      const { data: locs } = await supabase.schema('parking_lot').rpc('get_locations_with_stats');
 
       if (bookings) {
         const today = new Date();

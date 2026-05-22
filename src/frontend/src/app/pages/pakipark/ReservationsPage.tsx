@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import { useNavigate } from '../../lib/router';
 import { 
   MapPin, 
@@ -16,71 +18,62 @@ import {
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
 
 export default function ReservationsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const displayName = getDisplayNameForEmail(user?.email, user?.name || 'Administrator');
+  const displayName = (user?.name || 'Admin');
 
-  const reservations = [
-    { 
-      id: 'RES-2847', 
-      customer: 'Sarah Johnson', 
-      location: 'Greenbelt 3 Basement', 
-      spot: 'A-15',
-      date: 'Mar 27, 2026',
-      time: '09:00 AM - 5:00 PM',
-      status: 'Active',
-      amount: '₱1,200',
-      vehicle: 'Toyota Camry'
-    },
-    { 
-      id: 'RES-2846', 
-      customer: 'Michael Chen', 
-      location: 'SM Mall of Asia - North', 
-      spot: 'B-23',
-      date: 'Mar 27, 2026',
-      time: '10:00 AM - 2:00 PM',
-      status: 'Active',
-      amount: '₱800',
-      vehicle: 'Honda Accord'
-    },
-    { 
-      id: 'RES-2845', 
-      customer: 'Emily Davis', 
-      location: 'BGC High Street', 
-      spot: 'C-08',
-      date: 'Mar 26, 2026',
-      time: '12:00 PM - 8:00 PM',
-      status: 'Completed',
-      amount: '₱1,600',
-      vehicle: 'Tesla Model 3'
-    },
-    { 
-      id: 'RES-2844', 
-      customer: 'David Martinez', 
-      location: 'Airport Terminal 3', 
-      spot: 'D-47',
-      date: 'Mar 27, 2026',
-      time: '06:00 AM - 11:59 PM',
-      status: 'Active',
-      amount: '₱2,400',
-      vehicle: 'BMW X5'
-    },
-    { 
-      id: 'RES-2843', 
-      customer: 'Lisa Anderson', 
-      location: 'Binondo Central Plaza', 
-      spot: 'A-32',
-      date: 'Mar 28, 2026',
-      time: '08:00 AM - 6:00 PM',
-      status: 'Upcoming',
-      amount: '₱1,400',
-      vehicle: 'Ford Explorer'
-    },
-  ];
+
+
+  const [reservations, setReservations] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState([
+    { label: 'Total Today', value: '0', icon: <Calendar />, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { label: 'Active Now', value: '0', icon: <Car />, color: 'text-[#ee6b20]', bg: 'bg-orange-50' },
+    { label: 'Upcoming', value: '0', icon: <Clock />, color: 'text-amber-500', bg: 'bg-amber-50' },
+    { label: 'Revenue Today', value: '₱0', icon: <DollarSign />, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  ]);
+
+  useEffect(() => {
+    async function fetchReservations() {
+      setIsLoading(true);
+      const { data, error } = await supabase.schema('reservation').rpc('get_bookings_with_users');
+      
+      if (!error && data) {
+        const mapped = data.map((b: any) => ({
+          id: b.reference || b.id.substring(0, 8),
+          customer: b.profiles?.full_name || 'Unknown User',
+          location: b.locationName || 'Unknown Location',
+          spot: b.spot || 'N/A',
+          date: new Date(b.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          time: b.timeSlot || 'N/A',
+          status: b.status ? (b.status.charAt(0).toUpperCase() + b.status.slice(1)) : 'Active',
+          amount: `₱${(Number(b.amount) || 0).toLocaleString()}`,
+          vehicle: `${b.vehiclePlate || ''} ${b.vehicleType || ''}`.trim() || 'Unknown Vehicle'
+        }));
+        setReservations(mapped);
+
+        // Stats
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayBookings = data.filter((b: any) => new Date(b.createdAt) >= today);
+        const activeNow = data.filter((b: any) => b.status?.toLowerCase() === 'active').length;
+        const upcoming = data.filter((b: any) => b.status?.toLowerCase() === 'upcoming').length;
+        const revenue = todayBookings.reduce((sum: number, b: any) => sum + (Number(b.amount) || 0), 0);
+
+        setStats([
+          { label: 'Total Today', value: todayBookings.length.toString(), icon: <Calendar />, color: 'text-blue-500', bg: 'bg-blue-50' },
+          { label: 'Active Now', value: activeNow.toString(), icon: <Car />, color: 'text-[#ee6b20]', bg: 'bg-orange-50' },
+          { label: 'Upcoming', value: upcoming.toString(), icon: <Clock />, color: 'text-amber-500', bg: 'bg-amber-50' },
+          { label: 'Revenue Today', value: `₱${revenue.toLocaleString()}`, icon: <DollarSign />, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+        ]);
+      }
+      setIsLoading(false);
+    }
+    fetchReservations();
+  }, []);
 
   return (
     <div className="flex h-screen bg-[#f4f7fa] font-sans overflow-hidden">
@@ -140,12 +133,7 @@ export default function ReservationsPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-            {[
-              { label: 'Total Today', value: '847', icon: <Calendar />, color: 'text-blue-500', bg: 'bg-blue-50' },
-              { label: 'Active Now', value: '534', icon: <Car />, color: 'text-[#ee6b20]', bg: 'bg-orange-50' },
-              { label: 'Upcoming', value: '289', icon: <Clock />, color: 'text-amber-500', bg: 'bg-amber-50' },
-              { label: 'Revenue Today', value: '₱165K', icon: <DollarSign />, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-            ].map((stat, i) => (
+            {stats.map((stat, i) => (
               <Card key={i} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[24px]">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
@@ -233,3 +221,4 @@ export default function ReservationsPage() {
     </div>
   );
 }
+

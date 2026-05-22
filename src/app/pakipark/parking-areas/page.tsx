@@ -1,12 +1,12 @@
 'use client';
 
 import { ProtectedRoute } from '@/modules/components/ProtectedRoute';
-import OperationalFeaturePage from '@/modules/pages/pakipark/OperationalFeaturePage';
+import ParkingAreasPage from '@/modules/pages/pakipark/ParkingAreasPage';
 
 export default function Page() {
   return (
     <ProtectedRoute app="pakipark">
-      <OperationalFeaturePage feature="parking-areas" />
+      <ParkingAreasPage />
     </ProtectedRoute>
   );
 }

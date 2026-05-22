@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from '../../lib/router';
 import {
   DollarSign,
@@ -25,7 +25,6 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type DateRange = 'Today' | 'Last 7 Days' | 'Last 30 Days' | 'Year to Date';
 
@@ -35,7 +34,7 @@ export default function ReportsPage() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>('Year to Date');
 
-  const displayName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
+  const displayName = (user?.name || 'Admin');
 
   const handleLogout = () => {
     logout();
@@ -43,90 +42,113 @@ export default function ReportsPage() {
   };
 
   // --- DATA MAPPING ---
-  const dataMap = {
-    "Today": {
-      revenue: "₱48.2K",
-      bookings: "124",
-      active: "85",
-      cancelled: "12",
-      chartData: [
-        { label: '08:00', revenue: 4000 },
-        { label: '10:00', revenue: 8500 },
-        { label: '12:00', revenue: 12000 },
-        { label: '14:00', revenue: 9500 },
-        { label: '16:00', revenue: 14200 },
-      ]
-    },
-    "Last 7 Days": {
-      revenue: "₱420K",
-      bookings: "984",
-      active: "310",
-      cancelled: "45",
-      chartData: [
-        { label: 'Mon', revenue: 58000 },
-        { label: 'Tue', revenue: 62000 },
-        { label: 'Wed', revenue: 71000 },
-        { label: 'Thu', revenue: 54000 },
-        { label: 'Fri', revenue: 85000 },
-        { label: 'Sat', revenue: 92000 },
-        { label: 'Sun', revenue: 45000 },
-      ]
-    },
-    "Last 30 Days": {
-      revenue: "₱1.8M",
-      bookings: "4,215",
-      active: "842",
-      cancelled: "112",
-      chartData: [
-        { label: 'Week 1', revenue: 420000 },
-        { label: 'Week 2', revenue: 480000 },
-        { label: 'Week 3', revenue: 510000 },
-        { label: 'Week 4', revenue: 430000 },
-      ]
-    },
-    "Year to Date": {
-      revenue: "₱21.4M",
-      bookings: "8,921",
-      active: "1,204",
-      cancelled: "342",
-      chartData: [
-        { label: 'Jan', revenue: 1250000 },
-        { label: 'Feb', revenue: 1350000 },
-        { label: 'Mar', revenue: 1450000 },
-        { label: 'Apr', revenue: 1100000 },
-        { label: 'May', revenue: 900000 },
-        { label: 'Jun', revenue: 980000 },
-        { label: 'Jul', revenue: 1200000 },
-        { label: 'Aug', revenue: 1800000 },
-        { label: 'Sep', revenue: 1950000 },
-        { label: 'Oct', revenue: 2100000 },
-        { label: 'Nov', revenue: 2200000 },
-        { label: 'Dec', revenue: 2580000 },
-      ]
+  // --- DATA MAPPING ---
+  const [dataMap, setDataMap] = useState<any>({
+    "Today": { revenue: "₱0", bookings: "0", active: "0", cancelled: "0", chartData: [] },
+    "Last 7 Days": { revenue: "₱0", bookings: "0", active: "0", cancelled: "0", chartData: [] },
+    "Last 30 Days": { revenue: "₱0", bookings: "0", active: "0", cancelled: "0", chartData: [] },
+    "Year to Date": { revenue: "₱0", bookings: "0", active: "0", cancelled: "0", chartData: [] }
+  });
+
+  const [vehicleDistribution, setVehicleDistribution] = useState([
+    { type: 'Sedans', percentage: 0, icon: <Car className="w-5 h-5" />, color: '#1e3d5a', sub: 'Standard Slots' },
+    { type: 'SUVs', percentage: 0, icon: <Truck className="w-5 h-5" />, color: '#ee6b20', sub: 'Large Slots' },
+    { type: 'Motorcycles', percentage: 0, icon: <Bike className="w-5 h-5" />, color: '#2a5373', sub: 'Compact Slots' },
+    { type: 'Electric (EV)', percentage: 0, icon: <Zap className="w-5 h-5" />, color: '#10b981', sub: 'Charging Slots' },
+  ]);
+
+  const [topHubs, setTopHubs] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    async function fetchReports() {
+      const { supabase } = await import('../../lib/supabase');
+      const { data: bookings } = await supabase.schema('reservation').rpc('get_bookings_with_users');
+      const { data: locs } = await supabase.schema('parking_lot').rpc('get_locations_with_stats');
+
+      if (bookings) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const last7 = new Date();
+        last7.setDate(last7.getDate() - 7);
+
+        const last30 = new Date();
+        last30.setDate(last30.getDate() - 30);
+
+        const ytd = new Date();
+        ytd.setMonth(0, 1);
+        ytd.setHours(0,0,0,0);
+
+        const processData = (startDate: Date) => {
+          const filtered = bookings.filter((b: any) => new Date(b.createdAt) >= startDate);
+          return {
+            revenue: `₱${filtered.reduce((sum: number, b: any) => sum + (Number(b.amount) || 0), 0).toLocaleString()}`,
+            bookings: filtered.length.toString(),
+            active: filtered.filter((b: any) => b.status === 'active' || b.status === 'ongoing').length.toString(),
+            cancelled: filtered.filter((b: any) => b.status === 'cancelled').length.toString(),
+            chartData: [
+              { label: 'Current', revenue: filtered.reduce((sum: number, b: any) => sum + (Number(b.amount) || 0), 0) },
+              { label: 'Previous', revenue: 0 } // simplified
+            ]
+          };
+        };
+
+        setDataMap({
+          "Today": processData(today),
+          "Last 7 Days": processData(last7),
+          "Last 30 Days": processData(last30),
+          "Year to Date": processData(ytd)
+        });
+
+        // Vehicles
+        let sedans = 0, suvs = 0, motors = 0, evs = 0;
+        bookings.forEach((b: any) => {
+          const t = b.vehicleType?.toLowerCase() || '';
+          if (t.includes('suv') || t.includes('van') || t.includes('truck')) suvs++;
+          else if (t.includes('motor') || t.includes('bike')) motors++;
+          else if (t.includes('ev') || t.includes('electric')) evs++;
+          else sedans++;
+        });
+        const total = sedans + suvs + motors + evs || 1;
+        
+        setVehicleDistribution([
+          { type: 'Sedans', percentage: Math.round((sedans/total)*100), icon: <Car className="w-5 h-5" />, color: '#1e3d5a', sub: 'Standard Slots' },
+          { type: 'SUVs', percentage: Math.round((suvs/total)*100), icon: <Truck className="w-5 h-5" />, color: '#ee6b20', sub: 'Large Slots' },
+          { type: 'Motorcycles', percentage: Math.round((motors/total)*100), icon: <Bike className="w-5 h-5" />, color: '#2a5373', sub: 'Compact Slots' },
+          { type: 'Electric (EV)', percentage: Math.round((evs/total)*100), icon: <Zap className="w-5 h-5" />, color: '#10b981', sub: 'Charging Slots' },
+        ]);
+
+        if (locs) {
+          const hubs = locs.map((l: any) => {
+            const locBookings = bookings.filter((b: any) => b.location_id === l.id);
+            const rev = locBookings.reduce((sum: number, b: any) => sum + (Number(b.amount) || 0), 0);
+            return {
+              hub: l.name,
+              bookings: locBookings.length,
+              revenue: `₱${rev.toLocaleString()}`,
+              growth: '+0%',
+              percentage: l.total_spots > 0 ? Math.round(((l.total_spots - (l.available_spots || 0)) / l.total_spots) * 100) : 0,
+              rawRev: rev
+            };
+          }).sort((a: any, b: any) => b.rawRev - a.rawRev).slice(0, 3);
+          setTopHubs(hubs);
+        }
+      }
     }
-  };
+    fetchReports();
+  }, []);
 
   const activeData = dataMap[dateRange] || dataMap["Year to Date"];
   const dateRanges = Object.keys(dataMap) as DateRange[];
-  const maxRevenue = useMemo(() => Math.max(...activeData.chartData.map(d => d.revenue)), [activeData]);
-
-  const vehicleDistribution = [
-    { type: 'Sedans', percentage: 45, icon: <Car className="w-5 h-5" />, color: '#1e3d5a', sub: 'Standard Slots' },
-    { type: 'SUVs', percentage: 30, icon: <Truck className="w-5 h-5" />, color: '#ee6b20', sub: 'Large Slots' },
-    { type: 'Motorcycles', percentage: 15, icon: <Bike className="w-5 h-5" />, color: '#2a5373', sub: 'Compact Slots' },
-    { type: 'Electric (EV)', percentage: 10, icon: <Zap className="w-5 h-5" />, color: '#10b981', sub: 'Charging Slots' },
-  ];
-
-  const topHubs = [
-    { hub: 'NAIA Terminal 3', bookings: 847, revenue: '₱125K', growth: '+15%', percentage: 94 },
-    { hub: 'SM North EDSA', bookings: 623, revenue: '₱83K', growth: '+12%', percentage: 82 },
-    { hub: 'Ayala Manila Bay', bookings: 512, revenue: '₱76K', growth: '+8%', percentage: 88 },
-  ];
+  const maxRevenue = useMemo(() => {
+    if (!activeData.chartData || activeData.chartData.length === 0) return 1;
+    return Math.max(...activeData.chartData.map((d: any) => d.revenue));
+  }, [activeData]);
 
   const handleExport = () => {
     const headers = ["Period", "Revenue (PHP)"];
-    const rows = activeData.chartData.map(d => [d.label, d.revenue]);
-    let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+    const rows = activeData.chartData.map((d: any) => [d.label, d.revenue]);
+    let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map((e: any) => e.join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -251,7 +273,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent className="p-8">
               <div className="flex items-end justify-between gap-3 h-72 px-2 pt-10">
-                {activeData.chartData.map((data, index) => (
+                {activeData.chartData.map((data: any, index: number) => (
                   <div key={index} className="flex-1 flex flex-col items-center gap-4 h-full group relative">
                     <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-[#1e3d5a] text-white text-[9px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-10 font-bold shadow-xl">
                       ₱{data.revenue >= 1000000 ? `${(data.revenue / 1000000).toFixed(1)}M` : `${(data.revenue / 1000).toFixed(0)}K`}
@@ -395,3 +417,4 @@ function StatCard({ label, value, trend, trendUp, icon }: any) {
     </div>
   );
 }
+

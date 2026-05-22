@@ -21,6 +21,16 @@ const registerAdmin = async (req, res) => {
   }
 };
 
+// POST /api/auth/register/staff
+const registerStaff = async (req, res) => {
+  try {
+    const user = await authService.registerStaff(req.body);
+    res.status(201).json({ success: true, data: user });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 // POST /api/auth/login
 const login = async (req, res) => {
   try {
@@ -56,4 +66,4 @@ const getMe = async (req, res) => {
   res.json({ success: true, data: req.user });
 };
 
-module.exports = { registerCustomer, registerAdmin, login, refresh, logout, getMe };
+module.exports = { registerCustomer, registerAdmin, registerStaff, login, refresh, logout, getMe };

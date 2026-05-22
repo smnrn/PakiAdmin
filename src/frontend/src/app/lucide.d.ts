@@ -40,6 +40,7 @@ declare module 'lucide-react' {
   export const ArrowRight: LucideIcon;
   export const Map: LucideIcon;
   export const FileText: LucideIcon;
+  export const FileCheck: LucideIcon;
   export const UserCheck: LucideIcon;
   export const MoreVertical: LucideIcon;
 
@@ -69,6 +70,9 @@ declare module 'lucide-react' {
   export const Briefcase: LucideIcon;
   export const Store: LucideIcon;
   export const Building2: LucideIcon;
+  export const HardHat: LucideIcon;
+  export const ToggleLeft: LucideIcon;
+  export const ToggleRight: LucideIcon;
 
   export const Wallet: LucideIcon;
   export const Bike: LucideIcon;

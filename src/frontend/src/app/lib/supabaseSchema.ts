@@ -116,15 +116,13 @@ export interface DashboardStats {
  */
 export async function fetchShipments(): Promise<ShipmentRow[]> {
   try {
-    const draftsRes = await supabase.schema('parcel').from('parcel_drafts').select('*').limit(200);
-    const itemsRes = await supabase.schema('parcel').from('parcel_draft_items').select('parcel_draft_id, created_at');
-    if (draftsRes.error) throw draftsRes.error;
-    const drafts = draftsRes.data ?? [];
-    const items = itemsRes.data ?? [];
-    const itemDateMap = new Map(items.map(item => [item.parcel_draft_id, item.created_at]));
+    const { data, error } = await supabase.schema('parcel').rpc('get_all_shipments');
+    if (error) throw error;
+    if (!data) return [];
+    
+    const rows = data as any[];
 
-    return drafts.map((row): ShipmentRow => {
-      const createdAt = itemDateMap.get(row.id);
+    return rows.map((row: any): ShipmentRow => {
       return {
         id: row.id ?? '',
         store: row.drop_off_point_name || 'Direct Delivery',
@@ -135,9 +133,9 @@ export async function fetchShipments(): Promise<ShipmentRow[]> {
         quantity: '1 Item',
         amount: `₱${Number(row.service_price || 0).toLocaleString('en-PH')}`,
         status: normalizeShipmentStatus(row.status),
-        driver: row.assigned_driver_id ? getDriverName(row.assigned_driver_id) : 'Unassigned',
+        driver: row.driver_name || 'Unassigned',
         eta: '24 hrs',
-        date: createdAt ? new Date(createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+        date: row.created_at ? new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
       };
     });
   } catch {
@@ -204,38 +202,29 @@ export async function updateShipmentStatus(
  */
 export async function fetchDrivers(): Promise<DriverRow[]> {
   try {
-    const { data, error } = await supabase
-      .schema('driver')
-      .from('driver_profiles')
-      .select('*')
-      .order('id');
-
+    const { data, error } = await supabase.schema('driver').rpc('get_all_drivers');
     if (error) throw error;
-    if (!data || data.length === 0) return [];
+    if (!data) return [];
 
-    return data.map((row): DriverRow => {
-      const name = getDriverName(row.id);
-      const email = `driver.${row.id.slice(0, 4)}@pakiship.com`;
-      const phone = getDriverPhone(row.id);
-      return {
-        id: row.id ?? '',
-        name,
-        email,
-        phone,
-        region: 'NCR',
-        city: 'Manila',
-        rating: 5.0,
-        status: row.is_online ? 'available' : 'offline',
-        accountStanding: row.documents_status === 'APPROVED' ? 'active' : 'inactive',
-        completedDeliveries: 10,
-        vehicleType: row.vehicle_type ?? 'Motorcycle',
-        lastActive: new Date().toLocaleDateString(),
-        onTimeRate: 100,
-        cancellationRate: 0,
-        acceptanceRate: Number(row.acceptance_rate ?? 100),
-        averageDeliveryTime: '25 mins',
-      };
-    });
+    const rows = data as any[];
+    return rows.map((row): DriverRow => ({
+      id: row.id ?? '',
+      name: row.name || getDriverName(row.id),
+      email: row.email || `driver.${String(row.id).slice(0, 4)}@pakiship.com`,
+      phone: row.phone || getDriverPhone(row.id),
+      region: 'NCR',
+      city: 'Manila',
+      rating: Number(row.rating ?? 5.0),
+      status: row.is_online ? 'available' : 'offline',
+      accountStanding: row.documents_status === 'APPROVED' ? 'active' : 'inactive',
+      completedDeliveries: Number(row.completed_deliveries ?? 0),
+      vehicleType: row.vehicle_type ?? 'Motorcycle',
+      lastActive: new Date().toLocaleDateString(),
+      onTimeRate: 100,
+      cancellationRate: 0,
+      acceptanceRate: Number(row.acceptance_rate ?? 100),
+      averageDeliveryTime: '25 mins',
+    }));
   } catch {
     return [];
   }
@@ -250,36 +239,27 @@ export async function fetchDrivers(): Promise<DriverRow[]> {
  */
 export async function fetchOperators(): Promise<OperatorRow[]> {
   try {
-    const { data, error } = await supabase
-      .schema('routing')
-      .from('operator_hubs')
-      .select('*')
-      .order('name');
-
+    const { data, error } = await supabase.schema('routing').rpc('get_all_operators');
     if (error) throw error;
-    if (!data || data.length === 0) return [];
+    if (!data) return [];
 
-    return data.map((row): OperatorRow => {
+    const rows = data as any[];
+    return rows.map((row): OperatorRow => {
       let hash = 0;
-      for (let i = 0; i < row.id.length; i++) hash += row.id.charCodeAt(i);
-      const ownerNames = ['Robert Lim', 'Michael Sy', 'David Go', 'Grace Tan'];
-      const ownerName = ownerNames[hash % ownerNames.length];
-      const email = `operator.${row.id.slice(0, 4)}@pakiship.com`;
-      const phone = `0918${(hash % 9000000) + 1000000}`;
-
+      for (let i = 0; i < String(row.id).length; i++) hash += String(row.id).charCodeAt(i);
       return {
         id: row.id ?? '',
-        businessName: row.name ?? '',
-        ownerName,
-        email,
-        phone,
+        businessName: row.business_name ?? '',
+        ownerName: row.owner_name || 'Unknown Owner',
+        email: row.email || `operator.${String(row.id).slice(0, 4)}@pakiship.com`,
+        phone: row.phone || `0918${(hash % 9000000) + 1000000}`,
         location: row.address ?? '',
         region: 'NCR',
         address: row.address ?? '',
         status: row.is_active ? 'active' : 'inactive',
         accountStanding: 'active',
-        parcelsHandled: 150,
-        pendingParcels: 10,
+        parcelsHandled: Number(row.parcels_handled ?? 0),
+        pendingParcels: Number(row.pending_parcels ?? 0),
         lastActive: new Date().toLocaleDateString(),
         operatingHours: '08:00 - 20:00',
         averageRating: 4.8,
@@ -431,18 +411,21 @@ export async function fetchAnalyticsStats(range: 'Today' | 'Last 7 Days' | 'Last
     const priorSinceISO = priorSince.toISOString();
     const priorUntilISO = priorUntil.toISOString();
 
-    const [itemsRes, draftsRes, driversRes] = await Promise.allSettled([
-      supabase.schema('parcel').from('parcel_draft_items').select('parcel_draft_id, created_at').gte('created_at', priorSinceISO),
-      supabase.schema('parcel').from('parcel_drafts').select('id, service_price, status'),
-      supabase.schema('driver').from('driver_profiles').select('id, is_online, acceptance_rate'),
-    ]);
+    const res = await supabase.schema('parcel').rpc('get_analytics_data');
+    if (res.error) {
+      console.error('get_analytics_data error:', res.error);
+      throw res.error;
+    }
+    const rawData = res.data as any;
+    const allItems = rawData.items || [];
+    const drafts = rawData.drafts || [];
+    const driversRows = rawData.drivers || [];
 
-    const items = itemsRes.status === 'fulfilled' && !itemsRes.value.error ? (itemsRes.value.data ?? []) : [];
-    const drafts = draftsRes.status === 'fulfilled' && !draftsRes.value.error ? (draftsRes.value.data ?? []) : [];
-    const draftMap = new Map(drafts.map(d => [d.id, d]));
+    const items = allItems.filter((i: any) => i.created_at >= priorSinceISO);
+    const draftMap = new Map(drafts.map((d: any) => [d.id, d]));
 
-    const curItems = items.filter(item => item.created_at >= currentISO);
-    const prevItems = items.filter(item => item.created_at >= priorSinceISO && item.created_at < priorUntilISO);
+    const curItems = items.filter((item: any) => item.created_at >= currentISO);
+    const prevItems = items.filter((item: any) => item.created_at >= priorSinceISO && item.created_at < priorUntilISO);
 
     let curRevenue = 0, curDelivered = 0, curPending = 0, curCancelled = 0, curLost = 0;
     const volumeMap: Record<string, { volume: number; revenue: number }> = {};
@@ -513,16 +496,15 @@ export async function fetchAnalyticsStats(range: 'Today' | 'Last 7 Days' | 'Last
     }));
 
     // Driver stats
-    if (driversRes.status === 'fulfilled' && !driversRes.value.error) {
-      const rows = driversRes.value.data ?? [];
-      zero.totalDrivers = rows.length;
+    if (driversRows.length > 0) {
+      zero.totalDrivers = driversRows.length;
       zero.onDeliveryDrivers = 0;
-      zero.activeNowDrivers = rows.filter((r) => r.is_online).length;
-      zero.topDrivers = [...rows]
+      zero.activeNowDrivers = driversRows.filter((r: any) => r.is_online).length;
+      zero.topDrivers = [...driversRows]
         .sort((a, b) => Number(b.acceptance_rate ?? 0) - Number(a.acceptance_rate ?? 0))
         .slice(0, 3)
         .map((r) => ({
-          name: getDriverName(r.id),
+          name: r.full_name || 'Unknown Driver',
           completion: `${(r.acceptance_rate ?? 100).toFixed(0)}%`,
           rating: '5.0',
         }));
@@ -567,32 +549,18 @@ export interface DashboardFeed {
 export async function fetchDashboardFeed(): Promise<DashboardFeed> {
   const empty: DashboardFeed = { recentShipments: [], pendingDriverApps: 0, openLostParcels: 0 };
   try {
-    const [shipmentsRes, appsRes, lostRes] = await Promise.allSettled([
-      supabase.schema('parcel').from('parcel_drafts')
-        .select('drop_off_point_name, pickup_address, service_price, status')
-        .limit(8),
-      supabase.schema('driver').from('driver_profiles')
-        .select('id', { count: 'exact', head: true })
-        .neq('documents_status', 'APPROVED'),
-      supabase.schema('parcel').from('parcel_drafts')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'LOST'),
-    ]);
-
-    if (shipmentsRes.status === 'fulfilled' && !shipmentsRes.value.error) {
-      empty.recentShipments = (shipmentsRes.value.data ?? []).map((r) => ({
-        store: r.drop_off_point_name ?? 'Direct Delivery',
-        location: r.pickup_address ?? '',
-        amount: Number((r.service_price ?? '0').toString().replace(/[^\d.]/g, '') || 0).toLocaleString('en-PH'),
-        status: normalizeShipmentStatus(r.status),
-      }));
-    }
-    if (appsRes.status === 'fulfilled' && !appsRes.value.error) {
-      empty.pendingDriverApps = appsRes.value.count ?? 0;
-    }
-    if (lostRes.status === 'fulfilled' && !lostRes.value.error) {
-      empty.openLostParcels = lostRes.value.count ?? 0;
-    }
+    const { data, error } = await supabase.schema('parcel').rpc('get_dashboard_feed');
+    if (error) throw error;
+    
+    const d = data as any;
+    empty.recentShipments = (d.recent || []).map((r: any) => ({
+      store: r.drop_off_point_name ?? 'Direct Delivery',
+      location: r.pickup_address ?? '',
+      amount: Number((r.service_price ?? '0').toString().replace(/[^\d.]/g, '') || 0).toLocaleString('en-PH'),
+      status: normalizeShipmentStatus(r.status),
+    }));
+    empty.pendingDriverApps = d.apps ?? 0;
+    empty.openLostParcels = d.lost ?? 0;
   } catch { /* return empty */ }
   return empty;
 }
@@ -620,35 +588,27 @@ export interface LostParcelCaseRow {
 
 export async function fetchLostParcelCases(): Promise<LostParcelCaseRow[]> {
   try {
-    const { data, error } = await supabase
-      .schema('parcel')
-      .from('lost_parcel_cases')
-      .select(`
-        id, parcel_id, affected_customer, customer_email, route,
-        parcel_value, date_reported, status, assigned_team,
-        last_known_location, last_known_timestamp,
-        status_history, timeline, assigned_driver
-      `)
-      .order('date_reported', { ascending: false });
-
+    const { data, error } = await supabase.schema('parcel').rpc('get_lost_parcels');
     if (error) throw error;
-    if (!data || data.length === 0) return [];
+    if (!data) return [];
+    
+    const rows = data as any[];
 
-    return data.map((row): LostParcelCaseRow => ({
+    return rows.map((row: any): LostParcelCaseRow => ({
       id: row.id ?? '',
-      parcelId: row.parcel_id ?? '',
-      affectedCustomer: row.affected_customer ?? '',
-      customerEmail: row.customer_email ?? '',
-      route: row.route ?? '',
+      parcelId: row.parcel_draft_id ?? '',
+      affectedCustomer: row.sender_name ?? '',
+      customerEmail: '', // Not returned by default query
+      route: row.tracking_number ?? '',
       parcelValue: Number(row.parcel_value ?? 0),
-      dateReported: row.date_reported ?? '',
+      dateReported: row.created_at ?? '',
       status: normalizeLostStatus(row.status),
-      assignedTeam: row.assigned_team ?? '',
-      lastKnownLocation: row.last_known_location ?? '',
-      lastKnownTimestamp: row.last_known_timestamp ?? '',
-      statusHistory: Array.isArray(row.status_history) ? row.status_history : [],
-      timeline: Array.isArray(row.timeline) ? row.timeline : [],
-      assignedDriver: row.assigned_driver ?? { name: '', phone: '', vehicle: '', rating: 0, lastContact: '' },
+      assignedTeam: row.priority ?? 'Support',
+      lastKnownLocation: row.resolution_notes ?? '',
+      lastKnownTimestamp: row.created_at ?? '',
+      statusHistory: [],
+      timeline: [],
+      assignedDriver: { name: row.driver_name || 'Unassigned', phone: '', vehicle: '', rating: 5, lastContact: '' },
     }));
   } catch {
     return [];
@@ -761,32 +721,26 @@ export interface DropOffApplicationRow {
 
 export async function fetchDriverApplications(): Promise<DriverApplicationRow[]> {
   try {
-    const { data, error } = await supabase
-      .schema('driver')
-      .from('driver_profiles')
-      .select('*')
-      .neq('documents_status', 'APPROVED');
-
+    const { data, error } = await supabase.schema('driver').rpc('get_dropoff_applications');
     if (error) throw error;
-    if (!data || data.length === 0) return [];
+    if (!data) return [];
+    
+    const rows = data as any[];
 
-    return data.map((row): DriverApplicationRow => {
-      const name = getDriverName(row.id);
-      const email = `driver.${row.id.slice(0, 4)}@pakiship.com`;
-      const phone = getDriverPhone(row.id);
+    return rows.map((row: any): DriverApplicationRow => {
       return {
         id: row.id ?? '',
-        name,
-        email,
-        phone,
+        name: row.full_name || 'Unknown Driver',
+        email: row.email || `driver.${row.id.slice(0, 4)}@pakiship.com`,
+        phone: row.phone_number || getDriverPhone(row.id),
         region: 'NCR',
         applicationDate: new Date().toLocaleDateString(),
         documentCount: 2,
-        status: row.documents_status === 'REJECTED' ? 'rejected' : 'pending',
+        status: row.driver_status === 'REJECTED' ? 'rejected' : 'pending',
         accountStatus: 'inactive',
         activatedDate: undefined,
         vehicleType: row.vehicle_type ?? 'Motorcycle',
-        plateNumber: `PLATE-${row.id.slice(0, 4).toUpperCase()}`,
+        plateNumber: row.plate_number || `PLATE-${row.id.slice(0, 4).toUpperCase()}`,
         documents: [
           { name: 'Driver License.pdf', size: '1.2 MB', uploadDate: new Date().toLocaleDateString(), url: '#' },
           { name: 'NBI Clearance.pdf', size: '850 KB', uploadDate: new Date().toLocaleDateString(), url: '#' }
@@ -804,33 +758,23 @@ export async function fetchBusinessApplications(): Promise<BusinessApplicationRo
 
 export async function fetchDropOffApplications(): Promise<DropOffApplicationRow[]> {
   try {
-    const { data, error } = await supabase
-      .schema('routing')
-      .from('operator_hubs')
-      .select('*')
-      .eq('is_active', false);
-
+    const { data, error } = await supabase.schema('routing').rpc('get_hub_applications');
     if (error) throw error;
-    if (!data || data.length === 0) return [];
+    if (!data) return [];
+    
+    const rows = data as any[];
 
-    return data.map((row): DropOffApplicationRow => {
-      let hash = 0;
-      for (let i = 0; i < row.id.length; i++) hash += row.id.charCodeAt(i);
-      const ownerNames = ['Robert Lim', 'Michael Sy', 'David Go', 'Grace Tan'];
-      const ownerName = ownerNames[hash % ownerNames.length];
-      const email = `operator.${row.id.slice(0, 4)}@pakiship.com`;
-      const phone = `0918${(hash % 9000000) + 1000000}`;
-
+    return rows.map((row: any): DropOffApplicationRow => {
       return {
         id: row.id ?? '',
         businessName: row.name ?? '',
-        ownerName,
-        email,
-        phone,
-        location: row.address ?? '',
-        address: row.address ?? '',
+        ownerName: row.full_name || 'Unknown Hub Owner',
+        email: row.email || `operator.${row.id.slice(0, 4)}@pakiship.com`,
+        phone: row.phone_number || '09000000000',
+        location: row.location_name ?? '',
+        address: row.location_name ?? '',
         dateApplied: new Date().toLocaleDateString(),
-        status: 'pending',
+        status: row.status === 'REJECTED' ? 'rejected' : 'pending',
         platformStatus: 'inactive',
         activatedDate: undefined,
         rejectionReason: undefined,
@@ -893,67 +837,48 @@ export async function rejectApplication(schema: 'driver' | 'routing', table: str
 
 export async function fetchDriverDetail(driverId: string): Promise<DriverDetailRow | null> {
   try {
-    const { data: driverData, error: driverError } = await supabase
-      .schema('driver')
-      .from('driver_profiles')
-      .select('*')
-      .eq('id', driverId)
-      .single();
+    const { data, error } = await supabase.schema('driver').rpc('get_driver_detail', { p_driver_id: driverId });
+    if (error) throw error;
+    if (!data) return null;
 
-    if (driverError || !driverData) return null;
+    const d = data as any;
 
-    // Fetch ratings from driver.driver_ratings
-    const { data: ratingsData } = await supabase
-      .schema('driver')
-      .from('driver_ratings')
-      .select('created_at, rating, comment, customer_name')
-      .eq('driver_id', driverId)
-      .order('created_at', { ascending: false });
-
-    // Fetch deliveries from parcel.parcel_drafts
-    const { data: deliveriesData } = await supabase
-      .schema('parcel')
-      .from('parcel_drafts')
-      .select('id, status, delivery_address, drop_off_point_name')
-      .eq('assigned_driver_id', driverId)
-      .limit(10);
-
-    const name = getDriverName(driverData.id);
-    const email = `driver.${driverData.id.slice(0, 4)}@pakiship.com`;
-    const phone = getDriverPhone(driverData.id);
-
-    const ratingsHistory = (ratingsData ?? []).map(r => ({
+    const ratingsHistory = (d.ratings_history ?? []).map((r: any) => ({
       date: r.created_at ? new Date(r.created_at).toISOString().split('T')[0] : '',
       rating: Number(r.rating),
       comment: r.comment ?? '',
       customer: r.customer_name ?? 'Anonymous'
     }));
 
-    const deliveryRecord = (deliveriesData ?? []).map(d => ({
-      id: d.id,
+    const deliveryRecord = (d.delivery_record ?? []).map((dr: any) => ({
+      id: dr.id,
       completedAt: new Date().toISOString(),
-      destination: d.delivery_address ?? '',
+      destination: dr.delivery_address ?? '',
       region: 'NCR',
-      status: normalizeShipmentStatus(d.status),
+      status: normalizeShipmentStatus(dr.status),
       rating: 5
     }));
 
+    const avgRating = ratingsHistory.length > 0
+      ? Number((ratingsHistory.reduce((acc: number, r: any) => acc + r.rating, 0) / ratingsHistory.length).toFixed(1))
+      : 5.0;
+
     return {
-      id: driverData.id ?? '',
-      name,
-      email,
-      phone,
+      id: d.id ?? '',
+      name: d.name || getDriverName(d.id),
+      email: d.email || `driver.${String(d.id).slice(0, 4)}@pakiship.com`,
+      phone: d.phone || getDriverPhone(d.id),
       region: 'NCR',
       city: 'Manila',
-      rating: ratingsHistory.length > 0 ? Number((ratingsHistory.reduce((acc, r) => acc + r.rating, 0) / ratingsHistory.length).toFixed(1)) : 5.0,
-      status: driverData.is_online ? 'available' : 'offline',
-      accountStanding: driverData.documents_status === 'APPROVED' ? 'active' : 'inactive',
+      rating: avgRating,
+      status: d.is_online ? 'available' : 'offline',
+      accountStanding: d.documents_status === 'APPROVED' ? 'active' : 'inactive',
       completedDeliveries: deliveryRecord.length,
-      vehicleType: driverData.vehicle_type ?? 'Motorcycle',
+      vehicleType: d.vehicle_type ?? 'Motorcycle',
       lastActive: new Date().toLocaleDateString(),
       onTimeRate: 100,
       cancellationRate: 0,
-      acceptanceRate: Number(driverData.acceptance_rate ?? 100),
+      acceptanceRate: Number(d.acceptance_rate ?? 100),
       averageDeliveryTime: '25 mins',
       ratingsHistory,
       deliveryRecord
@@ -985,42 +910,33 @@ export interface OperatorDetailRow extends OperatorRow {
 
 export async function fetchOperatorDetail(operatorId: string): Promise<OperatorDetailRow | null> {
   try {
-    const { data, error } = await supabase
-      .schema('routing')
-      .from('operator_hubs')
-      .select('id, name, address, storage_capacity, is_active')
-      .eq('id', operatorId)
-      .single();
-
+    const { data, error } = await supabase.schema('routing').rpc('get_operator_detail', { p_operator_id: operatorId });
     if (error) throw error;
     if (!data) return null;
 
+    const d = data as any;
     let hash = 0;
-    for (let i = 0; i < data.id.length; i++) hash += data.id.charCodeAt(i);
-    const ownerNames = ['Robert Lim', 'Michael Sy', 'David Go', 'Grace Tan'];
-    const ownerName = ownerNames[hash % ownerNames.length];
-    const email = `operator.${data.id.slice(0, 4)}@pakiship.com`;
-    const phone = `0918${(hash % 9000000) + 1000000}`;
+    for (let i = 0; i < String(d.id).length; i++) hash += String(d.id).charCodeAt(i);
 
     return {
-      id: data.id ?? '',
-      businessName: data.name ?? '',
-      ownerName,
-      email,
-      phone,
-      location: data.address ?? '',
+      id: d.id ?? '',
+      businessName: d.business_name ?? '',
+      ownerName: d.owner_name || 'Unknown Owner',
+      email: d.email || `operator.${String(d.id).slice(0, 4)}@pakiship.com`,
+      phone: d.phone || `0918${(hash % 9000000) + 1000000}`,
+      location: d.address ?? '',
       region: 'NCR',
-      address: data.address ?? '',
-      status: data.is_active ? 'active' : 'inactive',
+      address: d.address ?? '',
+      status: d.is_active ? 'active' : 'inactive',
       accountStanding: 'active',
-      parcelsHandled: 150,
-      pendingParcels: 10,
+      parcelsHandled: Number(d.parcels_handled ?? 0),
+      pendingParcels: Number(d.pending_parcels ?? 0),
       lastActive: new Date().toLocaleDateString(),
       operatingHours: '08:00 - 20:00',
       averageRating: 4.8,
       issueRate: 0.1,
       successfulHandoffRate: 99.5,
-      binCapacity: { totalBins: data.storage_capacity || 100, occupiedBins: 10, reservedBins: 5, availableBins: (data.storage_capacity || 100) - 15, utilizationRate: 15.0 },
+      binCapacity: { totalBins: d.storage_capacity || 100, occupiedBins: 0, reservedBins: 0, availableBins: d.storage_capacity || 100, utilizationRate: 0 },
       dropOffHistory: [],
       customerRatings: [],
     };

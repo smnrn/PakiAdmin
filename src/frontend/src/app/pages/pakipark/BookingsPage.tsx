@@ -27,7 +27,6 @@ import {
 import { Badge } from "../../components/ui/badge";
 import { useAuth } from '../../contexts/AuthContext';
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 // MODAL IMPORT
 import AddNewHub from './components/AddNewHub';
@@ -60,7 +59,7 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
-  const displayName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
+  const displayName = (user?.name || 'Admin');
 
   const handleLogout = () => {
     logout();
@@ -73,12 +72,42 @@ export default function BookingsPage() {
   };
 
   // --- BOOKINGS TABLE DATA ---
-  const initialBookings: BookingRecord[] = [
-    { id: "1", reference: "PKP-78291", userName: "Mia Sandoval", vehiclePlate: "NCR 1234", locationName: "Greenbelt 3", status: "active", amount: 150, timeSlot: "10:00 AM - 12:00 PM", date: "2024-05-20", duration: "2 hrs", paymentStatus: "paid" },
-    { id: "2", reference: "PKP-90122", userName: "Martin Villanueva", vehiclePlate: "WPD 888", locationName: "SM Mall of Asia", status: "upcoming", amount: 450, timeSlot: "02:00 PM - 06:00 PM", date: "2024-05-21", duration: "4 hrs", paymentStatus: "pending" },
-    { id: "3", reference: "PKP-11234", userName: "Ethan Flores", vehiclePlate: "ZXC 9901", locationName: "BGC High Street", status: "completed", amount: 310, timeSlot: "08:00 AM - 10:00 AM", date: "2024-05-19", duration: "2 hrs", paymentStatus: "paid" },
-    { id: "4", reference: "PKP-44561", userName: "Joshua Ramos", vehiclePlate: "ACT 777", locationName: "Binondo Plaza", status: "cancelled", amount: 0, timeSlot: "01:00 PM - 02:00 PM", date: "2024-05-18", duration: "1 hr", paymentStatus: "partial" },
-  ];
+  const [initialBookings, setInitialBookings] = useState<BookingRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  React.useEffect(() => {
+    async function fetchBookings() {
+      setIsLoading(true);
+      const { data, error } = await import('../../lib/supabase').then(mod => mod.supabase.schema('reservation').rpc('get_bookings_with_users'));
+      
+      if (!error && data) {
+        const mapped: BookingRecord[] = data.map((b: any) => {
+          let duration = 'N/A';
+          if (b.checkInAt && b.checkOutAt) {
+            const diffMs = new Date(b.checkOutAt).getTime() - new Date(b.checkInAt).getTime();
+            const diffHrs = Math.round(diffMs / 3600000);
+            duration = `${diffHrs} hr${diffHrs !== 1 ? 's' : ''}`;
+          }
+          return {
+            id: b.id,
+            reference: b.reference || 'N/A',
+            userName: b.profiles?.full_name || 'Unknown User',
+            vehiclePlate: b.vehiclePlate || 'N/A',
+            locationName: b.locationName || 'Unknown Location',
+            status: (b.status?.toLowerCase() as BookingStatus) || 'upcoming',
+            amount: Number(b.amount) || 0,
+            timeSlot: b.timeSlot || 'N/A',
+            date: b.date || new Date(b.createdAt).toISOString().split('T')[0],
+            duration,
+            paymentStatus: (b.paymentStatus?.toLowerCase() as PaymentStatus) || 'pending',
+          };
+        });
+        setInitialBookings(mapped);
+      }
+      setIsLoading(false);
+    }
+    fetchBookings();
+  }, []);
 
   // PAKISHIP MEMOIZED FILTER LOGIC
   const filteredBookings = useMemo(() => {
@@ -92,7 +121,7 @@ export default function BookingsPage() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [searchQuery, statusFilter]);
+  }, [searchQuery, statusFilter, initialBookings]);
 
   const getStatusBadge = (status: BookingStatus) => {
     const styles = {
@@ -290,3 +319,4 @@ export default function BookingsPage() {
     </div>
   );
 }
+
