@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
 import { SupabaseService } from '../supabase/supabase.service';
+import { ApicenterService } from '../apicenter/apicenter.service';
 import { ListShipmentsDto } from './dto/list-shipments.dto';
 import { UpdateShipmentStatusDto } from './dto/update-shipment-status.dto';
 import type { Shipment, ShipmentStatusHistoryItem } from './interfaces/shipment.interface';
@@ -55,7 +56,10 @@ const SHIPMENT_SOURCE_STATUSES = ['pending', 'accepted', 'in-progress', 'complet
 
 @Injectable()
 export class ShipmentsService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly apicenterService: ApicenterService,
+  ) {}
 
   async findAll(query: ListShipmentsDto) {
     const page = query.page ?? 1;
@@ -142,7 +146,26 @@ export class ShipmentsService {
       created_at: now,
     });
 
+    // Governed Kafka event dispatch through APICenter
+    await this.apicenterService.publishTribeEvent({
+      sourceServiceId: 'pakiship-admin',
+      key: job.id,
+      eventType: 'shipment.status_updated',
+      payload: {
+        shipmentId: job.id,
+        jobNumber: job.job_number,
+        fromStatus: job.status,
+        toStatus: update.status,
+        fromParcelStatus: job.parcel_status,
+        toParcelStatus: update.parcel_status,
+        reason: dto.reason.trim(),
+        updatedBy: dto.updatedBy?.trim() || 'PakiShip Admin',
+        occurredAt: now,
+      },
+    });
+
     return this.findOne(id);
+
   }
 
   private async loadShipments(status?: ShipmentStatus | 'All') {

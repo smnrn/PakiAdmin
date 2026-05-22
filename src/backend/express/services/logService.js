@@ -16,6 +16,8 @@
 'use strict';
 
 const { TransactionLog, ActivityLog } = require('../models/index');
+const apicenter = require('../utils/apicenter');
+
 
 // ─── TransactionLog ──────────────────────────────────────────────────────────
 
@@ -140,6 +142,20 @@ function logBookingCreated({ booking, userId }) {
         spot:          booking.spot,
       },
     }),
+    apicenter.publishTribeEvent({
+      key: booking.id || booking._id,
+      eventType: 'booking.created',
+      payload: {
+        bookingId: booking.id || booking._id,
+        reference: ref,
+        userId: userId,
+        amount: booking.amount,
+        paymentMethod: booking.paymentMethod,
+        spot: booking.spot,
+        date: booking.date,
+        timeSlot: booking.timeSlot,
+      },
+    }),
   ]).catch(() => {});
 }
 
@@ -183,47 +199,95 @@ function logBookingCancelled({ booking, userId, reason, refundAmount = 0, refund
         refundType:   refundType || 'none',
       },
     }),
+    apicenter.publishTribeEvent({
+      key: booking.id || booking._id,
+      eventType: 'booking.cancelled',
+      payload: {
+        bookingId: booking.id || booking._id,
+        reference: ref,
+        userId: userId,
+        reason: reason || 'User cancelled',
+        refundAmount,
+        refundType,
+      },
+    }),
   ]).catch(() => {});
 }
 
 /** Log check-in activity. */
 function logBookingCheckIn({ booking, adminId }) {
-  logActivity({
-    userId:      adminId,
-    action:      'BOOKING_CHECKIN',
-    entityType:  'Booking',
-    entityId:    booking.id || booking._id,
-    description: `Check-in recorded for ${booking.reference}`,
-    severity:    'info',
-    metadata:    { reference: booking.reference, spot: booking.spot },
-  }).catch(() => {});
+  Promise.all([
+    logActivity({
+      userId:      adminId,
+      action:      'BOOKING_CHECKIN',
+      entityType:  'Booking',
+      entityId:    booking.id || booking._id,
+      description: `Check-in recorded for ${booking.reference}`,
+      severity:    'info',
+      metadata:    { reference: booking.reference, spot: booking.spot },
+    }),
+    apicenter.publishTribeEvent({
+      key: booking.id || booking._id,
+      eventType: 'booking.checkin',
+      payload: {
+        bookingId: booking.id || booking._id,
+        reference: booking.reference,
+        spot: booking.spot,
+        adminId: adminId,
+      },
+    }),
+  ]).catch(() => {});
 }
 
 /** Log check-out activity. */
 function logBookingCheckOut({ booking, adminId }) {
-  logActivity({
-    userId:      adminId,
-    action:      'BOOKING_CHECKOUT',
-    entityType:  'Booking',
-    entityId:    booking.id || booking._id,
-    description: `Check-out recorded for ${booking.reference}`,
-    severity:    'info',
-    metadata:    { reference: booking.reference, spot: booking.spot },
-  }).catch(() => {});
+  Promise.all([
+    logActivity({
+      userId:      adminId,
+      action:      'BOOKING_CHECKOUT',
+      entityType:  'Booking',
+      entityId:    booking.id || booking._id,
+      description: `Check-out recorded for ${booking.reference}`,
+      severity:    'info',
+      metadata:    { reference: booking.reference, spot: booking.spot },
+    }),
+    apicenter.publishTribeEvent({
+      key: booking.id || booking._id,
+      eventType: 'booking.checkout',
+      payload: {
+        bookingId: booking.id || booking._id,
+        reference: booking.reference,
+        spot: booking.spot,
+        adminId: adminId,
+      },
+    }),
+  ]).catch(() => {});
 }
 
 /** Log no-show. */
 function logBookingNoShow({ booking, adminId }) {
-  logActivity({
-    userId:      adminId,
-    action:      'BOOKING_NO_SHOW',
-    entityType:  'Booking',
-    entityId:    booking.id || booking._id,
-    description: `No-show flagged for ${booking.reference}`,
-    severity:    'warning',
-    metadata:    { reference: booking.reference },
-  }).catch(() => {});
+  Promise.all([
+    logActivity({
+      userId:      adminId,
+      action:      'BOOKING_NO_SHOW',
+      entityType:  'Booking',
+      entityId:    booking.id || booking._id,
+      description: `No-show flagged for ${booking.reference}`,
+      severity:    'warning',
+      metadata:    { reference: booking.reference },
+    }),
+    apicenter.publishTribeEvent({
+      key: booking.id || booking._id,
+      eventType: 'booking.noshow',
+      payload: {
+        bookingId: booking.id || booking._id,
+        reference: booking.reference,
+        adminId: adminId,
+      },
+    }),
+  ]).catch(() => {});
 }
+
 
 /** Log user login. */
 function logUserLogin({ userId, ipAddress, userAgent, role }) {
