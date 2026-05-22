@@ -6,8 +6,9 @@ const path = require('path');
 const eventTypes = [
   'booking.created', 
   'booking.released', 
-  'booking.checkin', 
-  'booking.checkout', 
+  'booking.checked_in', 
+  'booking.checked_out', 
+  'booking.no_show_flagged',
   'shipment.status_updated', 
   'shipment.hub_transferred'
 ];
@@ -50,9 +51,11 @@ for (let i = 1; i <= 5000; i++) {
       : originalPrice;
 
     payload.bookingId = i;
-    payload.userId = 100 + (i % 50);
+    payload.customerId = 100 + (i % 50); // catalog standard: customerId instead of userId
+    payload.scheduledDate = new Date(Date.now() - (5000 - i) * 60000).toISOString().split('T')[0]; // catalog standard: scheduledDate instead of date
+    payload.status = isDynamicallyPriced ? 'upcoming' : 'active'; // catalog standard: status
+    payload.createdAt = occurredAt; // catalog standard: createdAt
     payload.spot = `F${1 + (i % 3)}-S${1 + (i % 10)}-L${String(i % 100).padStart(2, '0')}`;
-    payload.date = new Date(Date.now() - (5000 - i) * 60000).toISOString().split('T')[0];
     payload.timeSlot = `${String(6 + (i % 16)).padStart(2, '0')}:00 - ${String(7 + (i % 16)).padStart(2, '0')}:00`;
     payload.paymentMethod = paymentMethods[i % paymentMethods.length];
     
@@ -67,6 +70,7 @@ for (let i = 1; i <= 5000; i++) {
       ? 'unclaimed_auto_release' 
       : (isDynamicallyPriced ? 'last_minute_discounted_release' : 'standard_release');
     payload.amount = dynamicPrice; // final revenue amount
+
     
   } else {
     // Alignment to PakiShip Northstar: Relay shipping vs Direct Shipping, SLA, Hub Utilization

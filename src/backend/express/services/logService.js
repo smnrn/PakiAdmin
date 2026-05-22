@@ -147,13 +147,22 @@ function logBookingCreated({ booking, userId }) {
       eventType: 'booking.created',
       payload: {
         bookingId: booking.id || booking._id,
-        reference: ref,
-        userId: userId,
+        customerId: userId,
+        scheduledDate: booking.date,
+        status: booking.status,
+        createdAt: new Date().toISOString(),
         amount: booking.amount,
         paymentMethod: booking.paymentMethod,
         spot: booking.spot,
-        date: booking.date,
         timeSlot: booking.timeSlot,
+        // Northstar indicators
+        isAdvanceBooking: true,
+        minutesBeforeWindow: 180,
+        originalPrice: booking.amount,
+        dynamicPrice: booking.amount,
+        isDynamicallyPriced: false,
+        wasUnclaimed: false,
+        releaseType: 'standard_release',
       },
     }),
   ]).catch(() => {});
@@ -204,8 +213,9 @@ function logBookingCancelled({ booking, userId, reason, refundAmount = 0, refund
       eventType: 'booking.cancelled',
       payload: {
         bookingId: booking.id || booking._id,
-        reference: ref,
-        userId: userId,
+        customerId: userId || booking.userId,
+        status: 'cancelled',
+        cancelledAt: new Date().toISOString(),
         reason: reason || 'User cancelled',
         refundAmount,
         refundType,
@@ -228,11 +238,13 @@ function logBookingCheckIn({ booking, adminId }) {
     }),
     apicenter.publishTribeEvent({
       key: booking.id || booking._id,
-      eventType: 'booking.checkin',
+      eventType: 'booking.checked_in',
       payload: {
         bookingId: booking.id || booking._id,
+        customerId: booking.userId,
         reference: booking.reference,
         spot: booking.spot,
+        checkedInAt: new Date().toISOString(),
         adminId: adminId,
       },
     }),
@@ -253,11 +265,13 @@ function logBookingCheckOut({ booking, adminId }) {
     }),
     apicenter.publishTribeEvent({
       key: booking.id || booking._id,
-      eventType: 'booking.checkout',
+      eventType: 'booking.checked_out',
       payload: {
         bookingId: booking.id || booking._id,
+        customerId: booking.userId,
         reference: booking.reference,
         spot: booking.spot,
+        checkedOutAt: new Date().toISOString(),
         adminId: adminId,
       },
     }),
@@ -278,15 +292,18 @@ function logBookingNoShow({ booking, adminId }) {
     }),
     apicenter.publishTribeEvent({
       key: booking.id || booking._id,
-      eventType: 'booking.noshow',
+      eventType: 'booking.no_show_flagged',
       payload: {
         bookingId: booking.id || booking._id,
+        customerId: booking.userId,
         reference: booking.reference,
+        flaggedAt: new Date().toISOString(),
         adminId: adminId,
       },
     }),
   ]).catch(() => {});
 }
+
 
 
 /** Log user login. */
