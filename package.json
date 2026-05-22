@@ -7,7 +7,12 @@
     "dev:backend": "npm run dev --prefix src/backend/express",
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "build:frontend": "npm run build --prefix src/frontend",
-    "start:frontend": "npm run start --prefix src/frontend"
+    "start:frontend": "npm run start --prefix src/frontend",
+    "conveyor:generate": "node scripts/generate_confluent_test_data.js",
+    "conveyor:broadcast": "node scripts/confluent_broadcaster.js",
+    "conveyor:consume": "node scripts/confluent_consumer.js",
+    "conveyor:test": "concurrently -n \"Consumer,Broadcaster\" -c \"cyan,green\" \"npm run conveyor:consume -- --limit=100\" \"npm run conveyor:broadcast -- --limit=100 --delay=15\""
+
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
