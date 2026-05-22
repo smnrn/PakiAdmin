@@ -22,7 +22,6 @@ import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 interface LiveShipment {
   id: string;
@@ -171,7 +170,7 @@ export default function TrackingPage() {
   const [idleThresholdMinutes, setIdleThresholdMinutes] = useState('30');
   const [selectedShipmentId, setSelectedShipmentId] = useState(LIVE_SHIPMENTS[0].id);
 
-  const placeholderName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
+  const placeholderName = (user?.name || 'Juan Dela Cruz');
 
   const handleLogout = () => {
     logout();

@@ -29,7 +29,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type AnalyticsRange = 'Today' | 'Last 7 Days' | 'Last 30 Days' | 'Year to Date';
 type RevenueBreakdown = 'Week' | 'Month';
@@ -63,7 +62,7 @@ export default function AnalyticsPage() {
   const [appliedStartDate, setAppliedStartDate] = useState('2026-05-01');
   const [appliedEndDate, setAppliedEndDate] = useState('2026-05-15');
 
-  const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
+  const placeholderName = (user?.name || "Juan Dela Cruz");
 
   const handleLogout = () => {
     logout();

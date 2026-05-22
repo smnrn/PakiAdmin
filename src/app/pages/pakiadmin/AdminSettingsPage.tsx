@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import {
   Users,
   UserCheck,
@@ -17,7 +18,6 @@ import {
 import { useNavigate } from '../../lib/router';
 import { useAuth } from '../../contexts/AuthContext';
 import { TwoFactorAuthPanel } from '../../components/settings/TwoFactorAuthPanel';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
@@ -91,59 +91,50 @@ const MOCK_REQUESTS: AdminRequest[] = [
   },
 ];
 
-// Mock data for team members
-const MOCK_TEAM: TeamMember[] = [
-  {
-    id: 'TM-001',
-    name: 'Juan Dela Cruz',
-    email: 'juan@pakiadmin.ph',
-    role: 'Super Admin',
-    status: 'active',
-    joinedDate: '2026-01-15',
-  },
-  {
-    id: 'TM-002',
-    name: 'Ana Garcia',
-    email: 'ana.garcia@pakiadmin.ph',
-    role: 'Analyst',
-    status: 'active',
-    joinedDate: '2026-05-09',
-  },
-  {
-    id: 'TM-003',
-    name: 'Robert Tan',
-    email: 'robert.tan@pakiadmin.ph',
-    role: 'Developer',
-    status: 'active',
-    joinedDate: '2026-03-20',
-  },
-  {
-    id: 'TM-004',
-    name: 'Lisa Wong',
-    email: 'lisa.wong@pakiadmin.ph',
-    role: 'Moderator',
-    status: 'inactive',
-    joinedDate: '2026-02-10',
-  },
-];
-
 export default function AdminSettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const currentAdminName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
+  
   const [activeTab, setActiveTab] = useState<'team' | 'requests' | 'security'>('team');
   const [requests, setRequests] = useState<AdminRequest[]>(MOCK_REQUESTS);
-  const [teamMembers] = useState<TeamMember[]>(() =>
-    MOCK_TEAM.map((member, index) =>
-      index === 0
-        ? {
-            ...member,
-            name: currentAdminName,
-            email: user?.email || member.email,
-          }
-        : member,
-    ),
-  );
+  
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(true);
+
+  useEffect(() => {
+    async function fetchMembers() {
+      setIsLoadingMembers(true);
+      const { data, error } = await supabase
+        .schema('account')
+        .from('admin_accounts')
+        .select(`
+          is_active,
+          admin_role,
+          created_at,
+          profiles (
+            id,
+            full_name,
+            email
+          )
+        `);
+
+      if (!error && data) {
+        const members: TeamMember[] = data.map((item: any) => ({
+          id: item.profiles?.id || Math.random().toString(),
+          name: item.profiles?.full_name || 'Unknown',
+          email: item.profiles?.email || 'No email',
+          role: item.admin_role || 'Unknown',
+          status: item.is_active ? 'active' : 'inactive',
+          joinedDate: item.created_at ? new Date(item.created_at).toISOString().split('T')[0] : 'Unknown',
+        }));
+        setTeamMembers(members);
+      } else {
+        console.error('Failed to fetch team members', error);
+      }
+      setIsLoadingMembers(false);
+    }
+    fetchMembers();
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<RequestStatus | 'all'>('all');
   const [selectedRequest, setSelectedRequest] = useState<AdminRequest | null>(null);
@@ -352,33 +343,50 @@ export default function AdminSettingsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {teamMembers.map((member) => (
-                    <tr key={member.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[#dec0f1] flex items-center justify-center text-[#2c0735] font-bold">
-                            {member.name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-900">{member.name}</p>
-                            <p className="text-sm text-gray-500">{member.email}</p>
-                          </div>
+                  {isLoadingMembers ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-gray-500 font-semibold">
+                        <div className="flex items-center justify-center gap-3">
+                          <div className="w-5 h-5 border-2 border-[#2c0735] border-t-transparent rounded-full animate-spin" />
+                          Loading team members...
                         </div>
                       </td>
-                      <td className="py-4 px-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRoleBadgeColor(member.role)}`}>
-                          {member.role}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">{getStatusBadge(member.status)}</td>
-                      <td className="py-4 px-4 text-sm text-gray-600">{member.joinedDate}</td>
-                      <td className="py-4 px-4">
-                        <button className="text-[#2c0735] hover:text-[#3d0a47] font-bold text-sm">
-                          Manage
-                        </button>
+                    </tr>
+                  ) : teamMembers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-gray-500 font-semibold">
+                        No team members found
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    teamMembers.map((member) => (
+                      <tr key={member.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-[#dec0f1] flex items-center justify-center text-[#2c0735] font-bold">
+                              {member.name ? member.name.charAt(0).toUpperCase() : '?'}
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-900">{member.name}</p>
+                              <p className="text-sm text-gray-500">{member.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRoleBadgeColor(member.role)}`}>
+                            {member.role}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">{getStatusBadge(member.status)}</td>
+                        <td className="py-4 px-4 text-sm text-gray-600">{member.joinedDate}</td>
+                        <td className="py-4 px-4">
+                          <button className="text-[#2c0735] hover:text-[#3d0a47] font-bold text-sm">
+                            Manage
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

@@ -26,7 +26,6 @@ import { NotificationMenuButton } from '../../components/settings/NotificationMe
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { NotificationPreferencesPanel } from '../../components/settings/NotificationPreferencesPanel';
 import { TwoFactorAuthPanel } from '../../components/settings/TwoFactorAuthPanel';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 interface UserRecord {
   email: string;
@@ -112,7 +111,7 @@ export default function SettingsPage() {
   const [requestToReject, setRequestToReject] = useState<AdminRequestRecord | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const roleOptions = ["No Access", "View Only", "Limited Access", "Full Access", "Super Admin"];
-  const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
+  const placeholderName = (user?.name || "Juan Dela Cruz");
 
   const [users, setUsers] = useState<UserRecord[]>([
     { id: 1, name: placeholderName, email: user?.email || "juandelacruz@pakiadmin.ph", role: "Super Admin", status: "Active" },

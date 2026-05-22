@@ -32,7 +32,6 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 interface ShipmentRecord {
   id: string;
@@ -60,7 +59,7 @@ export default function ShipmentsPage() {
   const [endDateFilter, setEndDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const placeholderName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
+  const placeholderName = (user?.name || 'Juan Dela Cruz');
   const shipmentsPerPage = 6;
 
   const handleLogout = () => {

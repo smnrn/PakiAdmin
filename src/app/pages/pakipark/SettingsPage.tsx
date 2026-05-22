@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from '../../lib/router';
 import {
   Settings,
@@ -22,7 +22,6 @@ import { NotificationMenuButton } from '../../components/settings/NotificationMe
 import PakiParkSidebar from '../../components/pakipark/PakiParkSidebar';
 import { NotificationPreferencesPanel } from '../../components/settings/NotificationPreferencesPanel';
 import { TwoFactorAuthPanel } from '../../components/settings/TwoFactorAuthPanel';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 interface UserRecord {
   email: string;
@@ -101,14 +100,31 @@ export default function SettingsPage() {
   const [requestToReject, setRequestToReject] = useState<AdminRequestRecord | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const roleOptions = ["No Access", "View Only", "Limited Access", "Full Access", "Super Admin"];
-  const displayName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
+  const displayName = (user?.name || "Juan Dela Cruz");
 
-  const [users, setUsers] = useState<UserRecord[]>([
-    { id: 1, name: displayName, email: user?.email || "juandelacruz@pakiadmin.ph", role: "Super Admin", status: "Active" },
-    { id: 2, name: "Andrea Go", email: "andreago@pakiadmin.ph", role: "Full Access", status: "Active" },
-    { id: 3, name: "Sam Delos Reyes", email: "samdelosreyes@pakiadmin.ph", role: "View Only", status: "Inactive" },
-    { id: 4, name: "Bianca Santiago", email: "biancasantiago@pakiadmin.ph", role: "Limited Access", status: "Active" },
-  ]);
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      setIsLoading(true);
+      const { supabase } = await import('../../lib/supabase');
+      const { data, error } = await supabase.schema('account').from('admin_accounts').select('*, profiles:user_id(full_name)');
+      
+      if (!error && data) {
+        const mappedUsers = data.map((admin: any) => ({
+          id: admin.id,
+          name: admin.profiles?.full_name || 'Unknown User',
+          email: admin.email || 'N/A',
+          role: admin.role === 'super-admin' ? 'Super Admin' : (admin.role === 'admin' ? 'Full Access' : 'View Only'),
+          status: 'Active' as 'Active' | 'Inactive'
+        }));
+        setUsers(mappedUsers);
+      }
+      setIsLoading(false);
+    }
+    fetchMembers();
+  }, []);
 
   // --- ACTIONS ---
   const triggerSuccess = (msg: string) => {
@@ -637,3 +653,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

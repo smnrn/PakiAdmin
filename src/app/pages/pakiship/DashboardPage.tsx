@@ -27,7 +27,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type DashboardRange = 'Today' | '7 Days' | '30 Days' | 'Custom Range';
 type QuickActionTab = 'requests' | 'reports';
@@ -54,7 +53,7 @@ export default function DashboardPage() {
   const [customStartDate, setCustomStartDate] = useState('2026-05-01');
   const [customEndDate, setCustomEndDate] = useState('2026-05-15');
 
-  const placeholderName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
+  const placeholderName = (user?.name || 'Juan Dela Cruz');
   const formatShortDate = (value: string) =>
     new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(value));
 

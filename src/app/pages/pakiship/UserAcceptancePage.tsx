@@ -27,7 +27,6 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { pakiParkLogo, pakiShipLogo } from '../../lib/assets';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type ApplicantType = 'driver' | 'business';
 type AcceptanceTab = ApplicantType | 'dropoff';
@@ -210,7 +209,7 @@ export default function UserAcceptancePage() {
   const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
+  const placeholderName = (user?.name || "Juan Dela Cruz");
 
   const handleLogout = () => {
     logout();

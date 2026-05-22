@@ -117,7 +117,7 @@ export default function SuperAdminDashboardPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const placeholderName = getDisplayNameForEmail(user?.email, "Super Admin");
+  const placeholderName = (user?.name || "Super Admin");
 
   const handleLogout = () => {
     navigate('/pakiadmin/login');

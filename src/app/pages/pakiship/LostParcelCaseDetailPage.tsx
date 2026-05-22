@@ -27,7 +27,6 @@ import {
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from '../../lib/router';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 import {
   LOST_PARCEL_CASES,
   type InternalCaseNote,
@@ -65,7 +64,7 @@ export default function LostParcelCaseDetailPage({ caseId }: LostParcelCaseDetai
   const notificationSubject = `Resolution for lost parcel case ${lostCase.id}`;
   const notificationMessage = buildResolutionNotificationMessage(lostCase);
   const canSendResolutionNotification = lostCase.status === 'closed' && !lostCase.resolutionNotification;
-  const adminName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
+  const adminName = (user?.name || 'Juan Dela Cruz');
 
   const handleStatusUpdate = () => {
     if (!selectedStatus || !statusNote.trim()) return;

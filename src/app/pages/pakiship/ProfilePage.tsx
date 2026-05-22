@@ -25,7 +25,6 @@ import { Input } from '../../components/ui/input';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
-import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 function readStoredValue(key: string, fallback: string) {
   if (typeof window === 'undefined') {
@@ -39,7 +38,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const sampleDisplayName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
+  const sampleDisplayName = (user?.name || 'Juan Dela Cruz');
   const sampleEmail = user?.email || 'juandelacruz@pakiadmin.com';
 
   // --- STATE MANAGEMENT ---
@@ -58,7 +57,7 @@ export default function ProfilePage() {
 
   const [formData, setFormData] = useState({
     adminId: readStoredValue('pakiship_adminId', 'ADM-2026-1001'),
-    name: getDisplayNameForEmail(user?.email, readStoredValue('pakiship_name', sampleDisplayName)),
+    name: (user?.name || sampleDisplayName),
     email: user?.email || readStoredValue('pakiship_email', sampleEmail),
     phone: readStoredValue('pakiship_phone', '09123456789'),
     address: readStoredValue('pakiship_address', 'Espana Blvd., Sampaloc, Manila'),
