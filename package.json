@@ -12,9 +12,11 @@
     "conveyor:broadcast": "node scripts/confluent_broadcaster.js",
     "conveyor:consume": "node scripts/confluent_consumer.js",
     "conveyor:test": "concurrently -n \"Consumer,Broadcaster\" -c \"cyan,green\" \"npm run conveyor:consume -- --limit=100\" \"npm run conveyor:broadcast -- --limit=100 --delay=15\""
-
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@implementsprint/sdk": "^1.2.1"
   }
 }
