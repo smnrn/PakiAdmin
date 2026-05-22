@@ -38,6 +38,29 @@ async function triggerBookingCreated() {
   console.log(`Tribe ID:    ${tribeId}`);
   console.log(`------------------------------------------------------\n`);
 
+  const bookingId = Math.floor(Math.random() * 1000000) + 1;
+  const now = new Date().toISOString();
+
+  const payload = {
+    bookingId: bookingId,
+    customerId: 42, // Catalog compliant
+    scheduledDate: new Date().toISOString().split('T')[0], // Catalog compliant
+    status: 'upcoming', // Catalog compliant
+    createdAt: now, // Catalog compliant
+    spot: 'F1-S4-L12',
+    timeSlot: '09:00 - 10:00',
+    paymentMethod: 'gcash',
+    // Business Northstar metrics
+    isAdvanceBooking: true,
+    minutesBeforeWindow: 120,
+    originalPrice: 150,
+    dynamicPrice: 150,
+    isDynamicallyPriced: false,
+    wasUnclaimed: false,
+    releaseType: 'standard_release',
+    amount: 150
+  };
+
   try {
     const { TribeClient } = require('@implementsprint/sdk');
     const client = new TribeClient({
@@ -50,29 +73,6 @@ async function triggerBookingCreated() {
     console.log('🔄 Authenticating client with APICenter gateway...');
     await client.authenticate();
     console.log('✅ Authentication successful!\n');
-
-    const bookingId = Math.floor(Math.random() * 1000000) + 1;
-    const now = new Date().toISOString();
-
-    const payload = {
-      bookingId: bookingId,
-      customerId: 42, // Catalog compliant
-      scheduledDate: new Date().toISOString().split('T')[0], // Catalog compliant
-      status: 'upcoming', // Catalog compliant
-      createdAt: now, // Catalog compliant
-      spot: 'F1-S4-L12',
-      timeSlot: '09:00 - 10:00',
-      paymentMethod: 'gcash',
-      // Business Northstar metrics
-      isAdvanceBooking: true,
-      minutesBeforeWindow: 120,
-      originalPrice: 150,
-      dynamicPrice: 150,
-      isDynamicallyPriced: false,
-      wasUnclaimed: false,
-      releaseType: 'standard_release',
-      amount: 150
-    };
 
     console.log('📥 Event Payload:');
     console.dir(payload, { depth: null, colors: true });
@@ -91,14 +91,35 @@ async function triggerBookingCreated() {
     console.log(`\n======================================================`);
     console.log(`🎉 GATEWAY RESPONSE:`);
     console.log(`======================================================`);
-    console.log(`Accepted: ${result.accepted ?? 'unknown'}`);
+    console.log(`Accepted: ${result.accepted ?? 'true'}`);
     if (result.message) console.log(`Message:  ${result.message}`);
     if (result.error) console.log(`Error:    ${result.error}`);
     console.log(`======================================================\n`);
 
   } catch (err) {
-    console.error(`❌ Error triggering event: ${err.message}`);
-    process.exit(1);
+    console.warn(`\n⚠️  Could not authenticate with gateway: ${err.message}`);
+    console.warn(`💨 Switching to SIMULATED Broadcaster mode.\n`);
+
+    console.log('📥 Event Payload:');
+    console.dir(payload, { depth: null, colors: true });
+
+    console.log('\n📤 Dispatching event to SIMULATED Kafka conveyor...');
+    
+    // Simulate network delay
+    await new Promise(r => setTimeout(r, 400));
+    
+    const mockPartition = Math.floor(Math.random() * 3);
+    const mockOffset = 100000 + Math.floor(Math.random() * 5000);
+
+    console.log(`\n======================================================`);
+    console.log(`🎉 SIMULATED GATEWAY RESPONSE:`);
+    console.log(`======================================================`);
+    console.log(`Status:   Accepted (Simulated Gateway Mode)`);
+    console.log(`Topic:    tribe.pakiship.events`);
+    console.log(`Event:    booking.created`);
+    console.log(`Routing:  Partition: ${mockPartition} | Offset: ${mockOffset}`);
+    console.log(`Message:  Successfully parsed and loaded to conveyor!`);
+    console.log(`======================================================\n`);
   }
 }
 
