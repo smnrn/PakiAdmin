@@ -1,4 +1,4 @@
-import { Target, AlertTriangle, ArrowLeftRight } from 'lucide-react';
+import { Target, AlertTriangle, ArrowRightLeft } from 'lucide-react';
 import type { HubUtilization, HubBypassForecast } from '../../lib/supabaseSchema';
 
 interface NorthstarLogisticsCardsProps {
@@ -187,7 +187,7 @@ export default function NorthstarLogisticsCards({
           <div className={`group relative overflow-hidden rounded-[2rem] border ${s.border} ${s.bg} p-7 shadow-sm transition-all hover:shadow-md`}>
             <div className="mb-4 flex items-start justify-between">
               <div className={`rounded-2xl p-3 transition-transform group-hover:scale-110 ${s.icon}`}>
-                <ArrowLeftRight className="w-6 h-6" />
+                <ArrowRightLeft className="w-6 h-6" />
               </div>
               <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${s.badge}`}>
                 {relayPct > 0 || directPct > 0 ? 'LIVE SPLIT' : 'NO DATA'}

@@ -133,7 +133,7 @@ export default function AdminSettingsPage() {
   const currentAdminName = getDisplayNameForEmail(user?.email, 'Juan Dela Cruz');
   const [activeTab, setActiveTab] = useState<'team' | 'requests' | 'security'>('team');
   const [requests, setRequests] = useState<AdminRequest[]>(MOCK_REQUESTS);
-  const [teamMembers] = useState<TeamMember[]>(() =>
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() =>
     MOCK_TEAM.map((member, index) =>
       index === 0
         ? {
@@ -149,8 +149,33 @@ export default function AdminSettingsPage() {
   const [selectedRequest, setSelectedRequest] = useState<AdminRequest | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [newMemberData, setNewMemberData] = useState({ name: '', email: '', role: 'PakiShip Admin' });
   const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemberData.name || !newMemberData.email) return;
+    
+    setIsProcessing(true);
+    // Simulate API provisioning call
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const newMember: TeamMember = {
+      id: `TM-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: newMemberData.name,
+      email: newMemberData.email,
+      role: newMemberData.role,
+      status: 'active',
+      joinedDate: new Date().toISOString().split('T')[0],
+    };
+    
+    setTeamMembers(prev => [...prev, newMember]);
+    setIsProcessing(false);
+    setShowAddMemberModal(false);
+    setNewMemberData({ name: '', email: '', role: 'PakiShip Admin' });
+  };
 
   // Filter requests
   const filteredRequests = requests.filter((request) => {
@@ -335,7 +360,11 @@ export default function AdminSettingsPage() {
           <div className="bg-white rounded-[2rem] shadow-lg p-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-black text-[#2c0735]">Team Members</h2>
-              <button className="px-6 py-3 bg-[#2c0735] text-white rounded-xl font-bold text-sm hover:bg-[#3d0a47] transition-colors">
+              <button 
+                onClick={() => setShowAddMemberModal(true)}
+                className="px-6 py-3 bg-[#2c0735] text-white rounded-xl font-bold text-sm hover:bg-[#3d0a47] transition-colors flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
                 Add Member
               </button>
             </div>
@@ -756,6 +785,91 @@ export default function AdminSettingsPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-lg w-full">
+            <div className="p-8">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-black text-[#2c0735]">Provision Account</h3>
+                  <p className="text-sm text-gray-600 mt-1">Create and assign roles to a new administrator.</p>
+                </div>
+                <button
+                  onClick={() => setShowAddMemberModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddMember} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newMemberData.name}
+                    onChange={(e) => setNewMemberData({ ...newMemberData, name: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2c0735] focus:outline-none font-semibold"
+                    placeholder="Enter full name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={newMemberData.email}
+                    onChange={(e) => setNewMemberData({ ...newMemberData, email: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2c0735] focus:outline-none font-semibold"
+                    placeholder="name@pakiadmin.ph"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Role Assignment</label>
+                  <select
+                    value={newMemberData.role}
+                    onChange={(e) => setNewMemberData({ ...newMemberData, role: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2c0735] focus:outline-none font-semibold bg-white"
+                  >
+                    <option value="PakiShip Admin">PakiShip Admin</option>
+                    <option value="PakiPark Admin">PakiPark Admin</option>
+                    <option value="Analyst">Analyst</option>
+                    <option value="Support">Support</option>
+                    <option value="Super Admin">Super Admin</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-3 mt-8">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddMemberModal(false)}
+                    className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isProcessing}
+                    className="flex-1 py-3 bg-[#2c0735] text-white rounded-xl font-bold hover:bg-[#3d0a47] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Provisioning...
+                      </>
+                    ) : (
+                      'Create Account'
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

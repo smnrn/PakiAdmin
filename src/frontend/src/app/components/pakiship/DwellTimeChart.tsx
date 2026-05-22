@@ -93,8 +93,8 @@ export default function HubUtilizationChart({ data, isLoading }: HubUtilizationC
                   fontSize: 12,
                   fontWeight: 600,
                 }}
-                formatter={(value: number, name: string, props: { payload: { stored?: number; capacity?: number; sla?: number } }) => {
-                  if (name === 'util') return [`${value.toFixed(1)}%`, 'Utilization'];
+                formatter={(value: any, name: any, props: any) => {
+                  if (name === 'util' && typeof value === 'number') return [`${value.toFixed(1)}%`, 'Utilization'];
                   return [value, name];
                 }}
                 labelFormatter={(label) => label}

@@ -1,6 +1,22 @@
-import { useState, useMemo, useEffect } from 'react';
+'use client';
+
+import { useState, useEffect } from 'react';
 import { fetchAnalyticsStats, type AnalyticsStats } from '../../lib/supabaseSchema';
 import { useNavigate } from '../../lib/router';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  Area,
+  AreaChart,
+  Cell,
+} from 'recharts';
 import {
   TrendingUp,
   TrendingDown,
@@ -11,9 +27,7 @@ import {
   ChevronDown,
   Settings,
   LogOut,
-  Map,
   Activity,
-  ArrowUpRight,
   Wallet,
   Truck,
   Bike,
@@ -22,166 +36,410 @@ import {
   PackageX,
   AlertTriangle,
   Filter,
-  Navigation,
+  Package,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
-import { Button } from '../../components/ui/button';
 import PakiShipSidebar from '../../components/pakiship/PakiShipSidebar';
 import { getDisplayNameForEmail } from '../../lib/sampleAccounts';
 
 type AnalyticsRange = 'Today' | 'Last 7 Days' | 'Last 30 Days' | 'Year to Date';
 type RevenueBreakdown = 'Week' | 'Month';
 
-interface AnalyticsPoint {
-  month: string;
-  revenue: number;
+// ─── Colour tokens ──────────────────────────────────────────────────────────
+const TEAL = '#39B5A8';
+const TEAL_DARK = '#1A5D56';
+const TEAL_LIGHT = '#50E3C2';
+const BG = '#F0F9F8';
+
+// ─── Custom Tooltip ─────────────────────────────────────────────────────────
+function CustomTooltip({
+  active,
+  payload,
+  label,
+  prefix = '',
+  suffix = '',
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number; name: string }>;
+  label?: string;
+  prefix?: string;
+  suffix?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-[#39B5A8]/20 rounded-2xl shadow-xl px-4 py-3 text-sm font-bold text-[#1A5D56]">
+      <p className="text-xs text-gray-400 font-semibold mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} className="text-[#041614]">
+          {prefix}
+          {typeof p.value === 'number'
+            ? p.value >= 1_000_000
+              ? `${(p.value / 1_000_000).toFixed(2)}M`
+              : p.value >= 1_000
+              ? `${(p.value / 1_000).toFixed(1)}K`
+              : p.value.toLocaleString()
+            : p.value}
+          {suffix}
+        </p>
+      ))}
+    </div>
+  );
 }
 
-interface AnalyticsSummary {
-  cancelled: string;
-  chartData: AnalyticsPoint[];
-  delivered: string;
-  lostReports: string;
-  pending: string;
-  revenue: string;
+// ─── Empty chart placeholder ─────────────────────────────────────────────────
+function EmptyChart({ label = 'No data yet' }: { label?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-52 gap-3">
+      <div className="w-14 h-14 rounded-2xl bg-[#F0F9F8] border border-[#39B5A8]/20 flex items-center justify-center">
+        <Package className="w-6 h-6 text-[#39B5A8]/40" />
+      </div>
+      <p className="text-sm font-bold text-gray-300">{label}</p>
+      <p className="text-xs text-gray-200 font-medium">Data will appear once parcels are recorded</p>
+    </div>
+  );
 }
 
+// ─── Stat card ───────────────────────────────────────────────────────────────
+function StatCard({
+  label,
+  value,
+  trend,
+  trendUp,
+  icon,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  trend: string | null;
+  trendUp: boolean;
+  icon: React.ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[1.75rem] p-6 group hover:shadow-xl transition-all duration-300 ${
+        accent
+          ? 'bg-gradient-to-br from-[#39B5A8] to-[#1A5D56] text-white'
+          : 'bg-white border border-[#39B5A8]/10 shadow-sm'
+      }`}
+    >
+      {/* bg glyph */}
+      <div className="absolute -bottom-3 -right-3 opacity-[0.06] scale-[3] transition-transform group-hover:scale-[3.5]">
+        {icon}
+      </div>
+
+      <div className="relative z-10 flex items-start justify-between mb-4">
+        <div
+          className={`p-2.5 rounded-xl ${
+            accent ? 'bg-white/20' : 'bg-[#F0F9F8]'
+          }`}
+        >
+          <span className={accent ? 'text-white' : 'text-[#39B5A8]'}>{icon}</span>
+        </div>
+
+        {trend !== null ? (
+          <span
+            className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full ${
+              accent
+                ? 'bg-white/20 text-white'
+                : trendUp
+                ? 'bg-emerald-50 text-emerald-600'
+                : 'bg-red-50 text-red-500'
+            }`}
+          >
+            {trendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            {trend}
+          </span>
+        ) : (
+          <span
+            className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+              accent ? 'bg-white/10 text-white/60' : 'bg-gray-50 text-gray-300'
+            }`}
+          >
+            —
+          </span>
+        )}
+      </div>
+
+      <p
+        className={`text-xs font-bold uppercase tracking-widest mb-1 ${
+          accent ? 'text-white/60' : 'text-gray-400'
+        }`}
+      >
+        {label}
+      </p>
+      <p className={`text-2xl font-black ${accent ? 'text-white' : 'text-[#041614]'}`}>{value}</p>
+    </div>
+  );
+}
+
+// ─── Section header ──────────────────────────────────────────────────────────
+function SectionHeader({
+  title,
+  subtitle,
+  right,
+}: {
+  title: string;
+  subtitle?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between mb-6">
+      <div>
+        <h2 className="text-xl font-black text-[#041614]">{title}</h2>
+        {subtitle && <p className="text-sm font-medium text-gray-400 mt-0.5">{subtitle}</p>}
+      </div>
+      {right && <div>{right}</div>}
+    </div>
+  );
+}
+
+// ─── Pill toggle ─────────────────────────────────────────────────────────────
+function PillToggle<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: T[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex rounded-xl border border-[#39B5A8]/15 bg-[#F0F9F8] p-1">
+      {options.map((opt) => (
+        <button
+          key={opt}
+          onClick={() => onChange(opt)}
+          className={`rounded-lg px-3 py-1.5 text-xs font-black transition-all ${
+            value === opt ? 'bg-[#39B5A8] text-white shadow' : 'text-[#1A5D56] hover:bg-white/50'
+          }`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Chart card wrapper ──────────────────────────────────────────────────────
+function ChartCard({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`bg-white rounded-[2rem] border border-[#39B5A8]/10 shadow-sm p-7 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ─── Main page ───────────────────────────────────────────────────────────────
 export default function AnalyticsPage() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [dateRange, setDateRange] = useState<AnalyticsRange>('Year to Date');
-  const [revenueBreakdown, setRevenueBreakdown] = useState<RevenueBreakdown>('Week');
-  const [customStartDate, setCustomStartDate] = useState('2026-05-01');
-  const [customEndDate, setCustomEndDate] = useState('2026-05-15');
-  const [liveStats, setLiveStats] = useState<AnalyticsStats>({
-    revenue: 0, delivered: 0, pending: 0, cancelled: 0, lostReports: 0,
-    shipmentVolume: [], topDrivers: [], totalDrivers: 0, onDeliveryDrivers: 0, activeNowDrivers: 0,
+  const [revenueBreakdown, setRevenueBreakdown] = useState<RevenueBreakdown>('Month');
+  const [volumeType, setVolumeType] = useState<'Bar' | 'Line'>('Bar');
+  const [customStart, setCustomStart] = useState('2026-01-01');
+  const [customEnd, setCustomEnd] = useState('2026-12-31');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [stats, setStats] = useState<AnalyticsStats>({
+    revenue: 0,
+    delivered: 0,
+    pending: 0,
+    cancelled: 0,
+    lostReports: 0,
+    shipmentVolume: [],
+    topDrivers: [],
+    totalDrivers: 0,
+    onDeliveryDrivers: 0,
+    activeNowDrivers: 0,
     changes: {
-      revenue: null, delivered: null, pending: null, cancelled: null, lostReports: null,
-      revenueUp: true, deliveredUp: true, pendingUp: true, cancelledUp: true, lostReportsUp: true,
+      revenue: null,
+      delivered: null,
+      pending: null,
+      cancelled: null,
+      lostReports: null,
+      revenueUp: true,
+      deliveredUp: true,
+      pendingUp: true,
+      cancelledUp: true,
+      lostReportsUp: true,
     },
   });
 
   useEffect(() => {
-    let isMounted = true;
+    let alive = true;
+    setIsLoading(true);
     fetchAnalyticsStats(dateRange)
-      .then((stats) => { if (isMounted) setLiveStats(stats); })
-      .catch(() => {});
-    return () => { isMounted = false; };
+      .then((s) => { if (alive) { setStats(s); setIsLoading(false); } })
+      .catch(() => { if (alive) setIsLoading(false); });
+    return () => { alive = false; };
   }, [dateRange]);
 
-  const placeholderName = getDisplayNameForEmail(user?.email, "Juan Dela Cruz");
+  const placeholderName = getDisplayNameForEmail(user?.email, 'Admin');
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = () => { logout(); navigate('/'); };
+
+  // ── Derived chart data ───────────────────────────────────────────────────
+  const hasVolumeData = stats.shipmentVolume.length > 0 && stats.shipmentVolume.some((d) => d.volume > 0);
+  const hasRevenueData = stats.shipmentVolume.length > 0 && stats.shipmentVolume.some((d) => d.revenue > 0);
+
+  const volumeChartData = hasVolumeData
+    ? stats.shipmentVolume.map((d) => ({ label: d.month, value: d.volume }))
+    : [];
+
+  const revenueChartData = hasRevenueData
+    ? stats.shipmentVolume.map((d) => ({ label: d.month, value: d.revenue }))
+    : [];
+
+  // Combined overview chart data (revenue + volume together)
+  const overviewData = stats.shipmentVolume.map((d) => ({
+    label: d.month,
+    revenue: d.revenue,
+    volume: d.volume,
+  }));
+  const hasOverviewData = overviewData.some((d) => d.revenue > 0 || d.volume > 0);
+
+  const dateRanges: AnalyticsRange[] = ['Today', 'Last 7 Days', 'Last 30 Days', 'Year to Date'];
+
+  // ── Export ───────────────────────────────────────────────────────────────
+  const handleExport = () => {
+    const headers = ['Period', 'Volume', 'Revenue (PHP)'];
+    const rows = stats.shipmentVolume.map((d) => [d.month, d.volume, d.revenue]);
+    const csv =
+      'data:text/csv;charset=utf-8,' +
+      headers.join(',') +
+      '\n' +
+      rows.map((r) => r.join(',')).join('\n');
+    const a = document.createElement('a');
+    a.setAttribute('href', encodeURI(csv));
+    a.setAttribute('download', `PakiShip_Analytics_${customStart}_to_${customEnd}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
-  // All stats come from Supabase — 0 when disconnected
-  const activeData = {
-    revenue: `₱${liveStats.revenue.toLocaleString('en-PH')}`,
-    delivered: liveStats.delivered.toLocaleString(),
-    pending: liveStats.pending.toLocaleString(),
-    cancelled: liveStats.cancelled.toLocaleString(),
-    lostReports: liveStats.lostReports.toLocaleString(),
-    chartData: liveStats.shipmentVolume.length > 0
-      ? liveStats.shipmentVolume
-      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((m) => ({ month: m, revenue: 0 })),
-  };
-  const dateRanges = ['Today', 'Last 7 Days', 'Last 30 Days', 'Year to Date'] as AnalyticsRange[];
-  const maxRevenue = useMemo(
-    () => Math.max(1, ...activeData.chartData.map((d) => d.revenue)),
-    [activeData],
-  );
-
-  const driverWorkforce = [
-    { type: 'Total Drivers', count: liveStats.totalDrivers, growth: '', icon: <Truck className="w-5 h-5" />, sub: 'All Registered' },
-    { type: 'On Delivery', count: liveStats.onDeliveryDrivers, growth: '', icon: <Bike className="w-5 h-5" />, sub: 'Currently Active' },
-    { type: 'Active Now', count: liveStats.activeNowDrivers, growth: '', icon: <Activity className="w-5 h-5" />, sub: 'Available + On Delivery' },
+  // ── Stat cards config ─────────────────────────────────────────────────────
+  const statCards = [
+    {
+      label: 'Total Revenue',
+      value: `₱${stats.revenue.toLocaleString('en-PH')}`,
+      trend: stats.changes.revenue,
+      trendUp: stats.changes.revenueUp,
+      icon: <Wallet className="w-5 h-5" />,
+      accent: true,
+    },
+    {
+      label: 'Delivered',
+      value: stats.delivered.toLocaleString(),
+      trend: stats.changes.delivered,
+      trendUp: stats.changes.deliveredUp,
+      icon: <PackageCheck className="w-5 h-5" />,
+    },
+    {
+      label: 'Pending',
+      value: stats.pending.toLocaleString(),
+      trend: stats.changes.pending,
+      trendUp: stats.changes.pendingUp,
+      icon: <PackagePlus className="w-5 h-5" />,
+    },
+    {
+      label: 'Cancelled',
+      value: stats.cancelled.toLocaleString(),
+      trend: stats.changes.cancelled,
+      trendUp: !stats.changes.cancelledUp,
+      icon: <PackageX className="w-5 h-5" />,
+    },
+    {
+      label: 'Lost Reports',
+      value: stats.lostReports.toLocaleString(),
+      trend: stats.changes.lostReports,
+      trendUp: !stats.changes.lostReportsUp,
+      icon: <AlertTriangle className="w-5 h-5" />,
+    },
   ];
 
-  const topRoutes: { route: string; to: string; trips: number; revenue: string; percentage: number }[] = [];
-
-  const defaultMonths = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN'];
-
-  const shipmentVolume = liveStats.shipmentVolume.length > 0
-    ? liveStats.shipmentVolume.map((d) => ({
-        label: d.month.toUpperCase(),
-        value: d.volume,
-      }))
-    : defaultMonths.map((m) => ({ label: m, value: 0 }));
-
-  const revenueTrend = liveStats.shipmentVolume.length > 0
-    ? liveStats.shipmentVolume.map((d) => ({
-        label: d.month.toUpperCase(),
-        value: d.revenue,
-      }))
-    : defaultMonths.map((m) => ({ label: m, value: 0 }));
-
-  const lostParcelRate: { label: string; value: number }[] = [];
-
-  const deliveryTimeByRoute: { route: string; minutes: number }[] = [];
-
-  const driverLeaderboard = liveStats.topDrivers;
-
-  const handleExport = (format: 'csv' | 'pdf' = 'csv') => {
-    const headers = ["Period", "Revenue (PHP)"];
-    const rows = activeData.chartData.map((dataPoint) => [dataPoint.month, dataPoint.revenue]);
-    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map((entry) => entry.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `PakiShip_${customStartDate}_to_${customEndDate}_Report.${format}`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
-    <div className="flex h-screen bg-[#F0F9F8] font-sans text-[#1A5D56]">
+    <div className="flex h-screen bg-[#F0F9F8] font-sans text-[#1A5D56] overflow-hidden">
       <PakiShipSidebar activeTab="analytics" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-[#39B5A8]/10 px-10 flex items-center justify-between sticky top-0 z-10">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-4 bg-[#F0F9F8] px-4 py-2 rounded-xl border border-[#39B5A8]/10 w-180">
-              <Search className="w-4 h-4 text-[#39B5A8]/60" />
-              <input
-                type="text"
-                placeholder="Search analytics..."
-                className="bg-transparent border-none outline-none text-sm w-full placeholder:text-[#39B5A8]/40 font-medium"
-              />
-            </div>
+        {/* ── Header ── */}
+        <header className="h-[72px] bg-white/80 backdrop-blur-md border-b border-[#39B5A8]/10 px-8 flex items-center justify-between sticky top-0 z-10 shrink-0">
+          <div className="flex items-center gap-3 bg-[#F0F9F8] px-4 py-2.5 rounded-xl border border-[#39B5A8]/10 w-72">
+            <Search className="w-4 h-4 text-[#39B5A8]/50 shrink-0" />
+            <input
+              type="text"
+              placeholder="Search analytics…"
+              className="bg-transparent outline-none text-sm w-full placeholder:text-[#39B5A8]/40 font-medium"
+            />
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="h-8 w-[1px] bg-[#39B5A8]/10"></div>
+          <div className="flex items-center gap-4">
+            {/* Date range picker */}
+            <div className="relative group">
+              <button className="flex items-center gap-2 bg-white border border-[#39B5A8]/20 text-[#1A5D56] rounded-xl px-4 py-2 text-sm font-bold hover:bg-[#F0F9F8] transition-colors">
+                <Calendar className="w-4 h-4 text-[#39B5A8]" />
+                {dateRange}
+                <Filter className="w-3 h-3 opacity-40 ml-1" />
+              </button>
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-[#39B5A8]/10 rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30 overflow-hidden">
+                {dateRanges.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setDateRange(r)}
+                    className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${
+                      dateRange === r ? 'bg-[#39B5A8] text-white' : 'hover:bg-[#F0F9F8] text-[#1A5D56]'
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 bg-[#39B5A8] hover:bg-[#2F9D91] text-white rounded-xl px-4 py-2 text-sm font-bold shadow-lg shadow-[#39B5A8]/20 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+
+            <div className="w-px h-8 bg-[#39B5A8]/10" />
+
+            {/* User menu */}
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-3 hover:bg-[#F0F9F8] px-3 py-2 rounded-xl transition-all"
+                className="flex items-center gap-2.5 hover:bg-[#F0F9F8] px-3 py-2 rounded-xl transition-all"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-[#39B5A8] to-[#1A5D56] rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-[#39B5A8]/20">
+                <div className="w-9 h-9 bg-gradient-to-br from-[#39B5A8] to-[#1A5D56] rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-[#39B5A8]/20">
                   {placeholderName.charAt(0).toUpperCase()}
                 </div>
-                <div className="text-left hidden md:block min-w-max">
-                  <p className="text-sm font-bold text-[#041614] leading-tight whitespace-nowrap">{placeholderName}</p>
-                </div>
-                <ChevronDown className={`w-4 h-4 text-[#1A5D56] transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                <span className="hidden md:block text-sm font-bold text-[#041614] whitespace-nowrap">
+                  {placeholderName}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-[#1A5D56]/60 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
               </button>
-
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#39B5A8]/10 overflow-hidden z-20">
-                  <button onClick={() => navigate('/pakiship/profile')} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F9F8] transition-colors text-left font-semibold text-[#041614]">
+                <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-[#39B5A8]/10 overflow-hidden z-20">
+                  <button onClick={() => navigate('/pakiship/profile')} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F9F8] transition-colors text-left font-semibold text-[#041614] text-sm">
                     <User className="w-4 h-4 text-[#39B5A8]" /> Profile
                   </button>
-                  <button onClick={() => navigate('/pakiship/settings')} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F9F8] transition-colors text-left font-semibold text-[#041614]">
+                  <button onClick={() => navigate('/pakiship/settings')} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-[#F0F9F8] transition-colors text-left font-semibold text-[#041614] text-sm">
                     <Settings className="w-4 h-4 text-[#39B5A8]" /> Settings
                   </button>
-                  <div className="border-t border-[#39B5A8]/10"></div>
-                  <button onClick={handleLogout} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-red-50 transition-colors text-left font-semibold text-red-500">
+                  <div className="border-t border-[#39B5A8]/10" />
+                  <button onClick={handleLogout} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-red-50 transition-colors text-left font-semibold text-red-500 text-sm">
                     <LogOut className="w-4 h-4" /> Logout
                   </button>
                 </div>
@@ -190,410 +448,396 @@ export default function AnalyticsPage() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-10 space-y-8">
-          <div className="flex items-end justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-[#041614] tracking-tight">PakiShip Analytics</h1>
-            <p className="text-[#1A5D56] opacity-70 font-medium italic">Real-time system performance across the PakiShip network.</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative group">
-                <Button 
-                  variant="outline"
-                  className="bg-white border-[#39B5A8]/20 text-[#1A5D56] rounded-xl font-bold hover:bg-[#F0F9F8] min-w-[160px] justify-between"
-                >
-                  <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-2 text-[#39B5A8]" />
+        {/* ── Main content ── */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-8 space-y-8 max-w-[1600px] mx-auto">
+
+            {/* ── Page heading ── */}
+            <div className="flex items-end justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-black text-[#39B5A8] uppercase tracking-[0.15em] bg-[#39B5A8]/10 px-2.5 py-1 rounded-full">
                     {dateRange}
-                  </div>
-                  <Filter className="w-3 h-3 ml-2 opacity-50" />
-                </Button>
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-[#39B5A8]/10 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30 overflow-hidden">
-                  {dateRanges.map((range) => (
-                    <button 
-                      key={range} 
-                      onClick={() => setDateRange(range)}
-                      className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${dateRange === range ? 'bg-[#39B5A8] text-white' : 'hover:bg-[#F0F9F8] text-[#1A5D56]'}`}
-                    >
-                      {range}
-                    </button>
-                  ))}
+                  </span>
+                  {isLoading && (
+                    <span className="text-[10px] font-bold text-gray-400 animate-pulse">Fetching…</span>
+                  )}
                 </div>
+                <h1 className="text-3xl font-black text-[#041614] tracking-tight">Analytics Overview</h1>
+                <p className="text-sm text-[#1A5D56]/60 font-medium mt-0.5">
+                  Real-time performance across the PakiShip delivery network
+                </p>
               </div>
-              <Button 
-                onClick={() => handleExport('csv')}
-                className="bg-[#39B5A8] hover:bg-[#2F9D91] text-white rounded-xl shadow-lg shadow-[#39B5A8]/20"
-              >
-                <Download className="w-4 h-4 mr-2" /> Export Data
-              </Button>
+
+              {/* Custom date range row */}
+              <div className="flex items-center gap-2 bg-white border border-[#39B5A8]/10 rounded-2xl px-4 py-2.5 shadow-sm">
+                <Calendar className="w-3.5 h-3.5 text-[#39B5A8]/60 shrink-0" />
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="text-xs font-bold text-[#1A5D56] bg-transparent outline-none"
+                />
+                <span className="text-gray-300 text-xs">→</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="text-xs font-bold text-[#1A5D56] bg-transparent outline-none"
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
-            <StatCard
-              label="Total Revenue"
-              value={activeData.revenue}
-              trend={liveStats.changes.revenue}
-              trendUp={liveStats.changes.revenueUp}
-              icon={<Wallet className="w-4 h-4" />}
-            />
-            <StatCard
-              label="Parcels Delivered"
-              value={activeData.delivered}
-              trend={liveStats.changes.delivered}
-              trendUp={liveStats.changes.deliveredUp}
-              icon={<PackageCheck className="w-4 h-4" />}
-            />
-            <StatCard
-              label="Parcels Pending"
-              value={activeData.pending}
-              trend={liveStats.changes.pending}
-              trendUp={liveStats.changes.pendingUp}
-              icon={<PackagePlus className="w-4 h-4" />}
-            />
-            <StatCard
-              label="Parcels Cancelled"
-              value={activeData.cancelled}
-              trend={liveStats.changes.cancelled}
-              trendUp={liveStats.changes.cancelledUp}
-              icon={<PackageX className="w-4 h-4" />}
-            />
-            <StatCard
-              label="Open Lost Parcel Reports"
-              value={activeData.lostReports}
-              trend={liveStats.changes.lostReports}
-              trendUp={liveStats.changes.lostReportsUp}
-              icon={<AlertTriangle className="w-4 h-4" />}
-            />
-          </div>
+            {/* ── KPI stat cards ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+              {statCards.map((card, i) => (
+                <StatCard key={i} {...card} />
+              ))}
+            </div>
 
-          <div className="grid grid-cols-1 gap-8">
-            <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
-              <CardHeader className="p-10 pb-2">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                  <div>
-                    <CardTitle className="text-2xl font-black text-[#041614]">Custom Performance Report</CardTitle>
-                    <p className="text-sm text-gray-400 mt-1 font-medium">Apply a custom date range and export the report as CSV or PDF.</p>
+            {/* ── Overview chart (Area / dual) ── */}
+            <ChartCard>
+              <SectionHeader
+                title={`Performance Overview — ${dateRange}`}
+                subtitle="Revenue trajectory and shipment volume combined"
+                right={
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-gray-400">
+                      <span className="inline-block w-3 h-1 rounded-full bg-[#39B5A8]" /> Revenue
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-gray-400">
+                      <span className="inline-block w-3 h-1 rounded-full bg-[#1A5D56]/30" /> Volume
+                    </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <input type="date" value={customStartDate} onChange={(event) => setCustomStartDate(event.target.value)} className="h-11 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 text-sm font-bold text-[#1A5D56] outline-none" />
-                    <input type="date" value={customEndDate} onChange={(event) => setCustomEndDate(event.target.value)} className="h-11 rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] px-4 text-sm font-bold text-[#1A5D56] outline-none" />
-                    <Button onClick={() => handleExport('csv')} className="rounded-xl bg-[#39B5A8] text-white hover:bg-[#2F9D91]">
-                      <Download className="w-4 h-4 mr-2" /> CSV
-                    </Button>
-                    <Button onClick={() => handleExport('pdf')} variant="outline" className="rounded-xl border-[#39B5A8]/20 bg-white text-[#1A5D56]">
-                      <Download className="w-4 h-4 mr-2" /> PDF
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
+                }
+              />
+              {hasOverviewData ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={overviewData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={TEAL} stopOpacity={0.25} />
+                        <stop offset="95%" stopColor={TEAL} stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradVolume" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={TEAL_DARK} stopOpacity={0.15} />
+                        <stop offset="95%" stopColor={TEAL_DARK} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#39B5A8" strokeOpacity={0.08} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 10, fontWeight: 700, fill: '#1A5D56', opacity: 0.5 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      yAxisId="revenue"
+                      orientation="left"
+                      tick={{ fontSize: 10, fontWeight: 700, fill: '#39B5A8' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) =>
+                        v >= 1_000_000 ? `₱${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `₱${(v / 1_000).toFixed(0)}K` : `₱${v}`
+                      }
+                      width={60}
+                    />
+                    <YAxis
+                      yAxisId="volume"
+                      orientation="right"
+                      tick={{ fontSize: 10, fontWeight: 700, fill: '#1A5D56', opacity: 0.4 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={36}
+                    />
+                    <Tooltip
+                      content={<CustomTooltip prefix="Revenue: ₱" />}
+                      cursor={{ stroke: TEAL, strokeWidth: 1, strokeDasharray: '4 4' }}
+                    />
+                    <Area
+                      yAxisId="revenue"
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke={TEAL}
+                      strokeWidth={2.5}
+                      fill="url(#gradRevenue)"
+                      dot={{ r: 4, fill: '#fff', stroke: TEAL, strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: TEAL }}
+                    />
+                    <Area
+                      yAxisId="volume"
+                      type="monotone"
+                      dataKey="volume"
+                      stroke={TEAL_DARK}
+                      strokeWidth={1.5}
+                      strokeDasharray="5 3"
+                      fill="url(#gradVolume)"
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyChart label="No performance data for this period" />
+              )}
+            </ChartCard>
 
-            <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
-              <MiniBarChart title="Shipment Volume" subtitle="Daily and weekly shipment demand patterns" data={shipmentVolume} />
+            {/* ── Shipment Volume + Revenue Trend row ── */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {/* Shipment Volume */}
+              <ChartCard>
+                <SectionHeader
+                  title="Shipment Volume"
+                  subtitle="Number of shipments per period"
+                  right={
+                    <PillToggle
+                      options={['Bar', 'Line'] as const}
+                      value={volumeType}
+                      onChange={setVolumeType}
+                    />
+                  }
+                />
+                {hasVolumeData ? (
+                  <ResponsiveContainer width="100%" height={210}>
+                    {volumeType === 'Bar' ? (
+                      <BarChart data={volumeChartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="barGradVol" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={TEAL_LIGHT} />
+                            <stop offset="100%" stopColor={TEAL} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke={TEAL} strokeOpacity={0.07} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 10, fontWeight: 700, fill: TEAL_DARK, opacity: 0.5 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10, fontWeight: 700, fill: TEAL_DARK, opacity: 0.4 }}
+                          axisLine={false}
+                          tickLine={false}
+                          allowDecimals={false}
+                        />
+                        <Tooltip content={<CustomTooltip suffix=" shipments" />} cursor={{ fill: `${TEAL}10` }} />
+                        <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={52} fill="url(#barGradVol)" />
+                      </BarChart>
+                    ) : (
+                      <LineChart data={volumeChartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={TEAL} strokeOpacity={0.07} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 10, fontWeight: 700, fill: TEAL_DARK, opacity: 0.5 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10, fontWeight: 700, fill: TEAL_DARK, opacity: 0.4 }}
+                          axisLine={false}
+                          tickLine={false}
+                          allowDecimals={false}
+                        />
+                        <Tooltip content={<CustomTooltip suffix=" shipments" />} cursor={{ stroke: TEAL, strokeDasharray: '4 4' }} />
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke={TEAL}
+                          strokeWidth={2.5}
+                          dot={{ r: 4, fill: '#fff', stroke: TEAL, strokeWidth: 2 }}
+                          activeDot={{ r: 6, fill: TEAL }}
+                        />
+                      </LineChart>
+                    )}
+                  </ResponsiveContainer>
+                ) : (
+                  <EmptyChart label="No shipment volume data" />
+                )}
+              </ChartCard>
 
-              <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
-                <CardHeader className="p-10 pb-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-2xl font-black text-[#041614]">Revenue Trend</CardTitle>
-                      <p className="text-sm text-gray-400 mt-1 font-medium">Broken down by week or month</p>
-                    </div>
-                    <div className="flex rounded-xl border border-[#39B5A8]/10 bg-[#F0F9F8] p-1">
-                      {(['Week', 'Month'] as const).map((breakdown) => (
-                        <button
-                          key={breakdown}
-                          onClick={() => setRevenueBreakdown(breakdown)}
-                          className={`rounded-lg px-4 py-2 text-xs font-black ${revenueBreakdown === breakdown ? 'bg-[#39B5A8] text-white' : 'text-[#1A5D56]'}`}
+              {/* Revenue Trend */}
+              <ChartCard>
+                <SectionHeader
+                  title="Revenue Trend"
+                  subtitle="Gross revenue earned per period"
+                  right={
+                    <PillToggle
+                      options={['Week', 'Month'] as const}
+                      value={revenueBreakdown}
+                      onChange={setRevenueBreakdown}
+                    />
+                  }
+                />
+                {hasRevenueData ? (
+                  <ResponsiveContainer width="100%" height={210}>
+                    <BarChart data={revenueChartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="revenueBarGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={TEAL_LIGHT} />
+                          <stop offset="100%" stopColor={TEAL} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={TEAL} strokeOpacity={0.07} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 10, fontWeight: 700, fill: TEAL_DARK, opacity: 0.5 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fontWeight: 700, fill: TEAL_DARK, opacity: 0.4 }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) =>
+                          v >= 1_000_000 ? `₱${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `₱${(v / 1_000).toFixed(0)}K` : `₱${v}`
+                        }
+                        width={54}
+                      />
+                      <Tooltip content={<CustomTooltip prefix="₱" />} cursor={{ fill: `${TEAL}10` }} />
+                      <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={52} fill="url(#revenueBarGrad)" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <EmptyChart label="No revenue data for this period" />
+                )}
+              </ChartCard>
+            </div>
+
+            {/* ── Driver Leaderboard + Driver Count ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Driver Leaderboard */}
+              <ChartCard>
+                <SectionHeader title="Driver Leaderboard" subtitle="Top performers ranked by acceptance rate" />
+                {stats.topDrivers.length === 0 ? (
+                  <EmptyChart label="No driver data available" />
+                ) : (
+                  <div className="space-y-3">
+                    {stats.topDrivers.map((driver, idx) => (
+                      <div
+                        key={driver.name}
+                        className="flex items-center gap-4 p-4 rounded-2xl bg-[#F0F9F8] hover:bg-[#39B5A8]/5 transition-colors group"
+                      >
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black shrink-0 ${
+                            idx === 0
+                              ? 'bg-amber-400 text-white'
+                              : idx === 1
+                              ? 'bg-slate-300 text-white'
+                              : 'bg-amber-700/50 text-white'
+                          }`}
                         >
-                          {breakdown}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-10">
-                  <SimpleBars data={revenueTrend} valuePrefix="₱" />
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
-              <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm">
-                <CardHeader className="p-8 pb-4">
-                  <CardTitle className="text-xl font-black text-[#041614]">Driver Leaderboard</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 px-8 pb-8">
-                  {driverLeaderboard.length === 0 ? (
-                    <p className="text-center text-sm text-gray-400 py-4 font-medium">No driver data</p>
-                  ) : driverLeaderboard.map((driver, index) => (
-                    <div key={driver.name} className="flex items-center justify-between rounded-2xl bg-[#F0F9F8] p-4">
-                      <div>
-                        <p className="text-sm font-black text-[#041614]">{index + 1}. {driver.name}</p>
-                        <p className="text-xs font-bold text-[#39B5A8]">{driver.completion} completion</p>
-                      </div>
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#1A5D56]">{driver.rating}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <MiniBarChart title="Lost Parcel Rate" subtitle="Loss incidents over time" data={lostParcelRate} suffix="%" />
-
-              <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm">
-                <CardHeader className="p-8 pb-4">
-                  <CardTitle className="text-xl font-black text-[#041614]">Average Delivery Time</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 px-8 pb-8">
-                  {deliveryTimeByRoute.map((route) => (
-                    <div key={route.route}>
-                      <div className="flex items-center justify-between text-xs font-black">
-                        <span className="text-[#041614]">{route.route}</span>
-                        <span className="text-[#39B5A8]">{route.minutes} mins</span>
-                      </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#F0F9F8]">
-                        <div className="h-full rounded-full bg-[#39B5A8]" style={{ width: `${Math.min(100, route.minutes * 2)}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
-              <CardHeader className="p-10 pb-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-2xl font-black font-bold text-[#041614]">Annual Performance ({dateRange})</CardTitle>
-                    <p className="text-sm text-gray-400 mt-1 font-medium">Network-wide revenue trajectory</p>
-                  </div>
-                  <div className="bg-[#F0F9F8] px-4 py-2 rounded-2xl border border-[#39B5A8]/10">
-                    <span className="text-xs font-black text-[#39B5A8] uppercase tracking-widest">Gross: {activeData.revenue}</span>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-10">
-                <div className="flex items-end justify-between gap-4 h-80 px-4 pt-12">
-                  {activeData.chartData.map((data, index) => (
-                    <div key={index} className="flex-1 flex flex-col items-center gap-4 h-full group relative">
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 transition-all duration-300 group-hover:-top-10">
-                        <p className="text-[10px] font-black text-[#1A5D56] bg-white px-2 py-1 rounded-lg shadow-sm border border-[#39B5A8]/10">
-                          ₱{data.revenue >= 1000000 ? `${(data.revenue / 1000000).toFixed(1)}M` : `${(data.revenue / 1000).toFixed(0)}K`}
-                        </p>
-                      </div>
-                      <div className="w-full flex flex-col justify-end h-full relative">
-                        {data.revenue > 0 ? (
-                          <div 
-                            className="w-full rounded-t-2xl transition-all duration-700 ease-out hover:scale-x-105 cursor-pointer shadow-lg shadow-[#39B5A8]/5 bg-gradient-to-t from-[#39B5A8] via-[#39B5A8]/80 to-[#50E3C2]"
-                            style={{ height: `${(data.revenue / maxRevenue) * 100}%` }}
-                          >
-                            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl"></div>
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-[#041614] truncate">{driver.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="flex-1 h-1.5 bg-white rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-[#39B5A8] to-[#50E3C2] rounded-full transition-all duration-700"
+                                style={{ width: driver.completion }}
+                              />
+                            </div>
+                            <span className="text-[10px] font-bold text-[#39B5A8] shrink-0">{driver.completion}</span>
                           </div>
-                        ) : (
-                          <div 
-                            className="w-full rounded-t-lg bg-[#39B5A8]/5 border border-dashed border-[#39B5A8]/20 transition-all duration-500"
-                            style={{ height: '4px' }}
-                            title="No data"
-                          />
-                        )}
+                        </div>
+                        <div className="flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl shadow-sm">
+                          <span className="text-amber-400 text-xs">★</span>
+                          <span className="text-xs font-black text-[#041614]">{driver.rating}</span>
+                        </div>
                       </div>
-                      <p className="text-[11px] font-black text-[#1A5D56]/60 tracking-wider uppercase group-hover:text-[#39B5A8] transition-colors">{data.month}</p>
+                    ))}
+                  </div>
+                )}
+              </ChartCard>
+
+              {/* Driver Workforce Counts */}
+              <ChartCard>
+                <SectionHeader title="Driver Workforce" subtitle="Overall fleet availability at a glance" />
+                <div className="grid grid-cols-3 gap-4 mt-2">
+                  {[
+                    {
+                      label: 'Total Drivers',
+                      count: stats.totalDrivers,
+                      icon: <Truck className="w-6 h-6" />,
+                      sub: 'Registered',
+                      color: 'from-[#39B5A8] to-[#1A5D56]',
+                    },
+                    {
+                      label: 'On Delivery',
+                      count: stats.onDeliveryDrivers,
+                      icon: <Bike className="w-6 h-6" />,
+                      sub: 'Active Route',
+                      color: 'from-blue-400 to-blue-600',
+                    },
+                    {
+                      label: 'Online Now',
+                      count: stats.activeNowDrivers,
+                      icon: <Activity className="w-6 h-6" />,
+                      sub: 'Available',
+                      color: 'from-emerald-400 to-emerald-600',
+                    },
+                  ].map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex flex-col items-center text-center p-5 rounded-2xl bg-[#F0F9F8] border border-[#39B5A8]/10 hover:shadow-lg transition-all duration-300 group"
+                    >
+                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center text-white shadow-lg mb-3 group-hover:scale-110 transition-transform`}>
+                        {item.icon}
+                      </div>
+                      <p className="text-3xl font-black text-[#041614]">{item.count}</p>
+                      <p className="text-[10px] font-black text-[#39B5A8] uppercase tracking-wider mt-0.5">{item.label}</p>
+                      <p className="text-[9px] font-bold text-gray-400 mt-0.5">{item.sub}</p>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
 
-          {/* BALANCED BOTTOM SECTION (1:1 Ratio) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* PEAK ROUTES */}
-            <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm overflow-hidden flex flex-col max-h-[300px]">
-              <CardHeader className="p-8 pb-4 shrink-0">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl font-black font-bold text-[#041614] flex items-center gap-2">
-                    Peak Routes
-                  </CardTitle>
-                  <span className="text-[10px] font-black text-[#39B5A8] bg-[#F0F9F8] px-2 py-1 rounded-lg uppercase tracking-wider">Live</span>
-                </div>
-              </CardHeader>
-              <CardContent className="px-8 pb-8 flex-1 overflow-y-auto custom-scrollbar space-y-6">
-                {topRoutes.length === 0 ? (
-                  <p className="text-center text-sm text-gray-400 py-8 font-medium">No route data available</p>
-                ) : topRoutes.map((route, index) => (
-                  <div key={index} className="group cursor-pointer pr-2">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex gap-3">
-                        <div className="w-10 h-10 shrink-0 rounded-xl bg-[#F0F9F8] flex items-center justify-center text-[#39B5A8] font-bold text-sm border border-[#39B5A8]/10 group-hover:bg-[#39B5A8] group-hover:text-white transition-all duration-300">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm text-[#041614] leading-tight group-hover:text-[#39B5A8] transition-colors">{route.route}</p>
-                          <p className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
-                            to <span className="text-[#1A5D56] font-bold">{route.to}</span>
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-black text-sm text-[#1A5D56]">{route.revenue}</p>
-                        <p className="text-[9px] font-bold text-[#39B5A8]">{route.trips} trips</p>
-                      </div>
+                {/* Mini inline bar showing active % */}
+                {stats.totalDrivers > 0 && (
+                  <div className="mt-6 p-4 rounded-2xl bg-[#F0F9F8] border border-[#39B5A8]/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-[#1A5D56]/60">Online Rate</span>
+                      <span className="text-xs font-black text-[#39B5A8]">
+                        {Math.round((stats.activeNowDrivers / stats.totalDrivers) * 100)}%
+                      </span>
                     </div>
-                    <div className="relative pt-1">
-                      <div className="flex mb-2 items-center justify-between">
-                        <div>
-                          <span className="text-[9px] font-black inline-block py-1 px-2 uppercase rounded-full text-[#39B5A8] bg-[#F0F9F8]">
-                            Efficiency Rate
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] font-black inline-block text-[#39B5A8]">
-                            {route.percentage}%
-                          </span>
-                        </div>
-                      </div>
-                      <div className="overflow-hidden h-1.5 text-xs flex rounded-full bg-[#F0F9F8]">
-                        <div 
-                          style={{ width: `${route.percentage}%` }}
-                          className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-[#39B5A8] to-[#1A5D56] transition-all duration-1000"
-                        ></div>
-                      </div>
+                    <div className="h-2 bg-white rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#39B5A8] to-[#50E3C2] rounded-full transition-all duration-700"
+                        style={{
+                          width: `${Math.round((stats.activeNowDrivers / Math.max(1, stats.totalDrivers)) * 100)}%`,
+                        }}
+                      />
                     </div>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                )}
+              </ChartCard>
+            </div>
 
-            {/* NETWORK WORKFORCE */}
-            <Card className="bg-white rounded-[2.5rem] border-[#39B5A8]/10 shadow-sm overflow-hidden flex flex-col">
-              <CardHeader className="p-8 pb-4 shrink-0">
-                 <CardTitle className="text-xl font-bold text-[#041614]">Overall Driver Count</CardTitle>
-              </CardHeader>
-              <CardContent className="p-8 flex-1 flex items-center">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full -mt-10">
-                  {driverWorkforce.map((stat, index) => (
-                    <div key={index} className="group flex flex-col gap-4 p-5 rounded-[2rem] bg-[#F0F9F8]/80 border border-[#39B5A8]/10 items-center text-center hover:bg-white hover:shadow-xl transition-all duration-500 cursor-default">
-                      <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-[#39B5A8] group-hover:bg-[#39B5A8] group-hover:text-white transition-colors duration-500">
-                        {stat.icon}
-                      </div>
-                      <div>
-                        <p className="text-xl font-black text-[#041614] leading-tight">{stat.count}</p>
-                        <p className="font-bold text-[#39B5A8] text-[9px] leading-tight mb-1">{stat.type}</p>
-                        <div className="flex flex-col items-center gap-0.5">
-                          <span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{stat.sub}</span>
-                          <span className="text-[9px] font-black text-emerald-500">{stat.growth}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+            {/* ── Summary export banner ── */}
+            <div className="bg-gradient-to-r from-[#1A5D56] to-[#39B5A8] rounded-[2rem] p-7 flex items-center justify-between">
+              <div>
+                <p className="text-white font-black text-lg">Export Your Analytics Report</p>
+                <p className="text-white/60 text-sm font-medium mt-0.5">
+                  Download a CSV snapshot of the currently filtered data
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right hidden md:block">
+                  <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest">Period</p>
+                  <p className="text-white font-black text-sm">{dateRange}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <button
+                  onClick={handleExport}
+                  className="flex items-center gap-2 bg-white text-[#1A5D56] hover:bg-[#F0F9F8] rounded-xl px-5 py-3 text-sm font-black shadow-lg transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Download CSV
+                </button>
+              </div>
+            </div>
+
           </div>
         </main>
       </div>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #F0F9F8;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #39B5A8;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #1A5D56;
-        }
-      `}</style>
     </div>
-  );
-}
-
-interface StatCardProps {
-  icon: React.ReactNode;
-  label: string;
-  trend: string | null;
-  trendUp: boolean;
-  value: string;
-}
-
-function StatCard({ label, value, trend, trendUp, icon }: StatCardProps) {
-  return (
-    <div className="bg-white p-6 rounded-[2rem] border border-[#39B5A8]/10 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-      <div className="flex items-center justify-between mb-4 relative z-10">
-        <div className="p-2 bg-[#F0F9F8] rounded-lg text-[#39B5A8]">
-          {icon}
-        </div>
-        {trend !== null ? (
-          <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-            {trendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            {trend}
-          </div>
-        ) : (
-          <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-50 text-gray-400">
-            No prior data
-          </div>
-        )}
-      </div>
-      <div className="relative z-10">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
-        <p className="text-3xl font-black text-[#041614]">{value}</p>
-      </div>
-      <div className="absolute -bottom-2 -right-2 text-[#39B5A8] opacity-[0.03] scale-[2.5] transition-transform group-hover:scale-[3]">
-        {icon}
-      </div>
-    </div>
-  );
-}
-
-interface ChartDatum {
-  label: string;
-  value: number;
-}
-
-function SimpleBars({ data, suffix = '', valuePrefix = '' }: { data: ChartDatum[]; suffix?: string; valuePrefix?: string }) {
-  const maxValue = Math.max(1, ...data.map((item) => item.value));
-
-  return (
-    <div className="flex h-56 items-end gap-4">
-      {data.map((item) => (
-        <div key={item.label} className="flex flex-1 flex-col items-center gap-3">
-          <div className="flex h-44 w-full items-end">
-            {item.value > 0 ? (
-              <div
-                className="w-full rounded-t-2xl bg-gradient-to-t from-[#39B5A8] to-[#50E3C2] shadow-lg shadow-[#39B5A8]/10 transition-all duration-500"
-                style={{ height: `${Math.max(12, (item.value / maxValue) * 100)}%` }}
-                title={`${valuePrefix}${item.value}${suffix}`}
-              />
-            ) : (
-              <div
-                className="w-full rounded-t-lg bg-[#39B5A8]/5 border border-dashed border-[#39B5A8]/20 transition-all duration-500"
-                style={{ height: '4px' }}
-                title="No data"
-              />
-            )}
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-[#1A5D56]/60">{item.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function MiniBarChart({ title, subtitle, data, suffix = '' }: { title: string; subtitle: string; data: ChartDatum[]; suffix?: string }) {
-  return (
-    <Card className="bg-white rounded-[3rem] border-none shadow-sm overflow-hidden">
-      <CardHeader className="p-10 pb-2">
-        <CardTitle className="text-2xl font-black text-[#041614]">{title}</CardTitle>
-        <p className="text-sm text-gray-400 mt-1 font-medium">{subtitle}</p>
-      </CardHeader>
-      <CardContent className="p-10">
-        <SimpleBars data={data} suffix={suffix} />
-      </CardContent>
-    </Card>
   );
 }

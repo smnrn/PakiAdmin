@@ -656,41 +656,53 @@ export async function fetchLostParcelCases(): Promise<LostParcelCaseRow[]> {
 }
 
 export async function updateLostParcelStatus(id: string, status: LostParcelStatus, note: string, updatedBy: string): Promise<boolean> {
-  const parcels = getStored('pakiship_lost_parcels', MOCK_LOST_PARCEL_CASES);
-  const updated = parcels.map(p => {
-    if (p.id !== id) return p;
-    const newHistory = [
-      ...(p.statusHistory || []),
-      {
-        id: `ISH-${id}-${(p.statusHistory || []).length + 1}`,
-        status,
-        timestamp: new Date().toISOString(),
-        updatedBy,
-        note
-      }
-    ];
-    return {
-      ...p,
-      status,
-      statusHistory: newHistory
-    };
-  });
-  setStored('pakiship_lost_parcels', updated);
-
   try {
-    const { error } = await supabase
+    // 1. Fetch current status history to append to it
+    const { data: currentCase, error: fetchError } = await supabase
       .schema('parcel')
       .from('lost_parcel_cases')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id);
-    if (error) throw error;
+      .select('status_history')
+      .eq('id', id)
+      .single();
 
+    if (fetchError) throw fetchError;
+
+    const currentHistory = Array.isArray(currentCase?.status_history) ? currentCase.status_history : [];
+    const newEvent = {
+      id: `ISH-${id}-${currentHistory.length + 1}`,
+      status,
+      timestamp: new Date().toISOString(),
+      updatedBy,
+      note
+    };
+    const updatedHistory = [...currentHistory, newEvent];
+
+    // 2. Update the lost_parcel_cases table
+    const { error: updateError } = await supabase
+      .schema('parcel')
+      .from('lost_parcel_cases')
+      .update({ 
+        status, 
+        status_history: updatedHistory,
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', id);
+
+    if (updateError) throw updateError;
+
+    // 3. Insert event log
     await supabase.schema('parcel').from('lost_parcel_case_events').insert({
-      case_id: id, status, note, updated_by: updatedBy, timestamp: new Date().toISOString(),
+      case_id: id, 
+      status, 
+      note, 
+      updated_by: updatedBy, 
+      timestamp: new Date().toISOString(),
     });
+
     return true;
-  } catch {
-    return true;
+  } catch (err) {
+    console.error('updateLostParcelStatus error:', err);
+    return false;
   }
 }
 
@@ -881,44 +893,70 @@ export async function rejectApplication(schema: 'driver' | 'routing', table: str
 
 export async function fetchDriverDetail(driverId: string): Promise<DriverDetailRow | null> {
   try {
-    const { data, error } = await supabase
+    const { data: driverData, error: driverError } = await supabase
       .schema('driver')
       .from('driver_profiles')
       .select('*')
       .eq('id', driverId)
       .single();
 
-    if (error) throw error;
-    if (!data) return null;
+    if (driverError || !driverData) return null;
 
-    const name = getDriverName(data.id);
-    const email = `driver.${data.id.slice(0, 4)}@pakiship.com`;
-    const phone = getDriverPhone(data.id);
+    // Fetch ratings from driver.driver_ratings
+    const { data: ratingsData } = await supabase
+      .schema('driver')
+      .from('driver_ratings')
+      .select('created_at, rating, comment, customer_name')
+      .eq('driver_id', driverId)
+      .order('created_at', { ascending: false });
+
+    // Fetch deliveries from parcel.parcel_drafts
+    const { data: deliveriesData } = await supabase
+      .schema('parcel')
+      .from('parcel_drafts')
+      .select('id, status, delivery_address, drop_off_point_name')
+      .eq('assigned_driver_id', driverId)
+      .limit(10);
+
+    const name = getDriverName(driverData.id);
+    const email = `driver.${driverData.id.slice(0, 4)}@pakiship.com`;
+    const phone = getDriverPhone(driverData.id);
+
+    const ratingsHistory = (ratingsData ?? []).map(r => ({
+      date: r.created_at ? new Date(r.created_at).toISOString().split('T')[0] : '',
+      rating: Number(r.rating),
+      comment: r.comment ?? '',
+      customer: r.customer_name ?? 'Anonymous'
+    }));
+
+    const deliveryRecord = (deliveriesData ?? []).map(d => ({
+      id: d.id,
+      completedAt: new Date().toISOString(),
+      destination: d.delivery_address ?? '',
+      region: 'NCR',
+      status: normalizeShipmentStatus(d.status),
+      rating: 5
+    }));
 
     return {
-      id: data.id ?? '',
+      id: driverData.id ?? '',
       name,
       email,
       phone,
       region: 'NCR',
       city: 'Manila',
-      rating: 5.0,
-      status: data.is_online ? 'available' : 'offline',
-      accountStanding: data.documents_status === 'APPROVED' ? 'active' : 'inactive',
-      completedDeliveries: 10,
-      vehicleType: data.vehicle_type ?? 'Motorcycle',
+      rating: ratingsHistory.length > 0 ? Number((ratingsHistory.reduce((acc, r) => acc + r.rating, 0) / ratingsHistory.length).toFixed(1)) : 5.0,
+      status: driverData.is_online ? 'available' : 'offline',
+      accountStanding: driverData.documents_status === 'APPROVED' ? 'active' : 'inactive',
+      completedDeliveries: deliveryRecord.length,
+      vehicleType: driverData.vehicle_type ?? 'Motorcycle',
       lastActive: new Date().toLocaleDateString(),
       onTimeRate: 100,
       cancellationRate: 0,
-      acceptanceRate: Number(data.acceptance_rate ?? 100),
+      acceptanceRate: Number(driverData.acceptance_rate ?? 100),
       averageDeliveryTime: '25 mins',
-      ratingsHistory: [
-        { date: '2026-05-18', rating: 5, comment: 'Punctual and very polite!' },
-        { date: '2026-05-17', rating: 5, comment: 'Careful with fragile items.' }
-      ],
-      deliveryRecord: [
-        { id: 'JOB-9912', completedAt: '2026-05-19T14:30:00Z', destination: 'Pasig to Taguig', region: 'NCR', status: 'Delivered', rating: 5 }
-      ],
+      ratingsHistory,
+      deliveryRecord
     };
   } catch {
     return null;
@@ -964,7 +1002,6 @@ export async function fetchOperatorDetail(operatorId: string): Promise<OperatorD
     const email = `operator.${data.id.slice(0, 4)}@pakiship.com`;
     const phone = `0918${(hash % 9000000) + 1000000}`;
 
-    const fallbackDetails = getStored('pakiship_operator_details', MOCK_OPERATOR_DETAILS)[operatorId] || {};
     return {
       id: data.id ?? '',
       businessName: data.name ?? '',
@@ -976,8 +1013,6 @@ export async function fetchOperatorDetail(operatorId: string): Promise<OperatorD
       address: data.address ?? '',
       status: data.is_active ? 'active' : 'inactive',
       accountStanding: 'active',
-      accountActionReason: fallbackDetails.accountActionReason ?? undefined,
-      accountActionDate: fallbackDetails.accountActionDate ?? undefined,
       parcelsHandled: 150,
       pendingParcels: 10,
       lastActive: new Date().toLocaleDateString(),
@@ -986,47 +1021,23 @@ export async function fetchOperatorDetail(operatorId: string): Promise<OperatorD
       issueRate: 0.1,
       successfulHandoffRate: 99.5,
       binCapacity: { totalBins: data.storage_capacity || 100, occupiedBins: 10, reservedBins: 5, availableBins: (data.storage_capacity || 100) - 15, utilizationRate: 15.0 },
-      dropOffHistory: fallbackDetails.dropOffHistory ?? [],
-      customerRatings: fallbackDetails.customerRatings ?? [],
+      dropOffHistory: [],
+      customerRatings: [],
     };
   } catch {
-    const details = getStored('pakiship_operator_details', MOCK_OPERATOR_DETAILS);
-    return details[operatorId] || null;
+    return null;
   }
 }
 
 export async function updateOperatorAccountStatus(operatorId: string, action: 'suspend' | 'reactivate' | 'deactivate', reason: string): Promise<boolean> {
-  const standing = action === 'reactivate' ? 'active' : action === 'suspend' ? 'suspended' : 'deactivated';
-  const status = action === 'reactivate' ? 'active' : action === 'suspend' ? 'suspended' : 'deactivated';
-  const hours = action === 'deactivate' ? 'Deactivated' : action === 'suspend' ? 'Suspended' : undefined;
   const is_active = action === 'reactivate';
-
-  const operators = getStored('pakiship_operators', MOCK_OPERATORS);
-  const updatedOperators = operators.map(o => o.id === operatorId ? {
-    ...o, accountStanding: standing, status, ...(hours ? { operatingHours: hours } : {})
-  } : o);
-  setStored('pakiship_operators', updatedOperators);
-
-  const details = getStored('pakiship_operator_details', MOCK_OPERATOR_DETAILS);
-  if (details[operatorId]) {
-    details[operatorId] = {
-      ...details[operatorId],
-      accountStanding: standing,
-      status,
-      accountActionReason: reason,
-      accountActionDate: new Date().toISOString().split('T')[0],
-      ...(hours ? { operatingHours: hours } : {})
-    };
-    setStored('pakiship_operator_details', details);
-  }
-
   try {
     const { error } = await supabase.schema('routing').from('operator_hubs').update({
       is_active
     }).eq('id', operatorId);
     return !error;
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -1535,6 +1546,7 @@ export interface ActionableInsight {
 export async function fetchDwellTimes(): Promise<HubDwellTime[]> {
   try {
     const { data, error } = await supabase
+      .schema('parcel')
       .from('vw_hub_dwell_times')
       .select('*');
     if (error) throw error;
@@ -1554,6 +1566,7 @@ export async function fetchDwellTimes(): Promise<HubDwellTime[]> {
 export async function fetchVolumeForecast(): Promise<HubVolumeForecast[]> {
   try {
     const { data, error } = await supabase
+      .schema('parcel')
       .from('vw_hub_volume_forecast')
       .select('*');
     if (error) throw error;
@@ -1574,6 +1587,7 @@ export async function fetchVolumeForecast(): Promise<HubVolumeForecast[]> {
 export async function fetchActionableInsights(): Promise<ActionableInsight[]> {
   try {
     const { data, error } = await supabase
+      .schema('parcel')
       .from('vw_pakiship_actionable_insights')
       .select('*');
     if (error) throw error;
@@ -1597,6 +1611,7 @@ export async function fetchActionableInsights(): Promise<ActionableInsight[]> {
 export async function fetchOnlineDriverCount(): Promise<number> {
   try {
     const { count, error } = await supabase
+      .schema('driver')
       .from('driver_sessions')
       .select('driver_user_id', { count: 'exact', head: true })
       .eq('is_online', true);
@@ -1614,12 +1629,14 @@ export async function executeSurgeAction(
   platform: string = 'pakiship'
 ): Promise<string | null> {
   try {
-    const { data, error } = await supabase.rpc('fn_execute_surge_action', {
-      p_location_id: locationId,
-      p_threat: threat,
-      p_action: action,
-      p_platform: platform,
-    });
+    const { data, error } = await supabase
+      .schema('routing')
+      .rpc('fn_execute_surge_action', {
+        p_location_id: locationId,
+        p_threat: threat,
+        p_action: action,
+        p_platform: platform,
+      });
     if (error) throw error;
     return data as string;
   } catch (err) {
@@ -1649,6 +1666,7 @@ export interface HubUtilization {
 export async function fetchHubUtilization(): Promise<HubUtilization[]> {
   try {
     const { data, error } = await supabase
+      .schema('parcel')
       .from('vw_pakiship_descriptive')
       .select('*');
     if (error) throw error;
@@ -1688,6 +1706,7 @@ export interface HubBypassForecast {
 export async function fetchHubBypassForecast(): Promise<HubBypassForecast[]> {
   try {
     const { data, error } = await supabase
+      .schema('parcel')
       .from('vw_pakiship_predictive')
       .select('*');
     if (error) throw error;
@@ -1729,6 +1748,7 @@ export interface PrescriptiveInsight {
 export async function fetchPrescriptiveInsights(): Promise<PrescriptiveInsight[]> {
   try {
     const { data, error } = await supabase
+      .schema('parcel')
       .from('vw_pakiship_prescriptive')
       .select('*');
     if (error) throw error;

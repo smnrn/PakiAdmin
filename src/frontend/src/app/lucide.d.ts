@@ -122,4 +122,6 @@ declare module 'lucide-react' {
   export const CalendarCheck: LucideIcon;
   export const Zap: LucideIcon;
   export const TrendingDown: LucideIcon;
+  export const ArrowLeftRight: LucideIcon;
+  export const ArrowRightLeft: LucideIcon;
 }

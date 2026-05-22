@@ -24,7 +24,7 @@ import {
   X,
 } from "lucide-react";
 
-import { pakiAdminLogo } from '../../lib/assets';
+import { pakiAdminLogo, pakiShipLogo, pakiParkLogo } from '../../lib/assets';
 import { useAuth } from "../../contexts/AuthContext";
 import { getDisplayNameForEmail } from "../../lib/sampleAccounts";
 
@@ -116,6 +116,7 @@ export default function SuperAdminDashboardPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showAppSelectorModal, setShowAppSelectorModal] = useState(false);
 
   const placeholderName = getDisplayNameForEmail(user?.email, "Super Admin");
 
@@ -594,7 +595,7 @@ export default function SuperAdminDashboardPage() {
           />
           <NavButton
             active={false}
-            onClick={() => navigate('/pakiship/dashboard')}
+            onClick={() => setShowAppSelectorModal(true)}
             icon={<User className="w-5 h-5" />}
             label="Operational Dashboard"
           />
@@ -965,6 +966,120 @@ export default function SuperAdminDashboardPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── App Selector Modal ─────────────────────────────────────────────── */}
+      {showAppSelectorModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-[#1d003e]/70 backdrop-blur-md"
+            onClick={() => setShowAppSelectorModal(false)}
+          />
+
+          {/* Modal card */}
+          <div className="relative bg-white rounded-[3rem] shadow-2xl shadow-[#300066]/40 max-w-2xl w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Top gradient strip */}
+            <div className="h-2 bg-gradient-to-r from-[#300066] via-[#6a16b8] to-[#300066]" />
+
+            <div className="p-10">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#300066]/50">
+                    Super Admin
+                  </span>
+                  <h2 className="text-3xl font-black text-[#2c0735] mt-1 tracking-tight">
+                    Select Operational Dashboard
+                  </h2>
+                  <p className="text-sm font-medium text-[#300066]/60 mt-1">
+                    Choose a product system to manage and monitor.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAppSelectorModal(false)}
+                  className="p-2.5 rounded-2xl hover:bg-[#300066]/10 transition-colors text-[#300066]/50 hover:text-[#300066]"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* App cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-8">
+                {/* PakiShip */}
+                <button
+                  onClick={() => { setShowAppSelectorModal(false); navigate('/pakiship/dashboard'); }}
+                  className="group relative flex flex-col items-start text-left p-7 rounded-[2rem] border-2 border-[#300066]/10 bg-gradient-to-br from-white to-[#f4f9ff] hover:border-[#0f766e]/40 hover:from-[#ecfffb] hover:to-[#d0f8f2] hover:shadow-xl hover:shadow-[#14b8a6]/20 transition-all duration-300 overflow-hidden"
+                >
+                  {/* bg glyph */}
+                  <div className="absolute -bottom-6 -right-6 w-28 h-28 rounded-full bg-[#14b8a6]/8 group-hover:bg-[#14b8a6]/15 transition-colors" />
+
+                  <div className="flex items-center justify-between w-full mb-5">
+                    <div className="h-12 flex items-center">
+                      <img
+                        src={pakiShipLogo}
+                        alt="PakiShip"
+                        className="h-10 w-auto object-contain"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full bg-[#14b8a6]/10 text-[#0f766e] group-hover:bg-[#14b8a6]/20 transition-colors">
+                      Logistics
+                    </span>
+                  </div>
+
+                  <h3 className="text-xl font-black text-[#06322e] mb-2">PakiShip Admin</h3>
+                  <p className="text-sm font-medium text-[#0f766e]/70 leading-6 mb-5">
+                    Manage shipments, drivers, drop-off operators, tracking and lost parcel cases.
+                  </p>
+
+                  <div className="flex items-center gap-2 text-xs font-black text-[#0f766e] group-hover:gap-3 transition-all">
+                    <span>Enter Dashboard</span>
+                    <span className="text-lg leading-none">→</span>
+                  </div>
+                </button>
+
+                {/* PakiPark */}
+                <button
+                  onClick={() => { setShowAppSelectorModal(false); navigate('/pakipark/dashboard'); }}
+                  className="group relative flex flex-col items-start text-left p-7 rounded-[2rem] border-2 border-[#300066]/10 bg-gradient-to-br from-white to-[#fdf4ff] hover:border-[#7b2cbf]/30 hover:from-[#fbf5ff] hover:to-[#f0e0ff] hover:shadow-xl hover:shadow-[#6a16b8]/15 transition-all duration-300 overflow-hidden"
+                >
+                  {/* bg glyph */}
+                  <div className="absolute -bottom-6 -right-6 w-28 h-28 rounded-full bg-[#6a16b8]/8 group-hover:bg-[#6a16b8]/12 transition-colors" />
+
+                  <div className="flex items-center justify-between w-full mb-5">
+                    <div className="h-12 flex items-center">
+                      <img
+                        src={pakiParkLogo}
+                        alt="PakiPark"
+                        className="h-10 w-auto object-contain"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full bg-[#6a16b8]/10 text-[#4b008f] group-hover:bg-[#6a16b8]/20 transition-colors">
+                      Parking
+                    </span>
+                  </div>
+
+                  <h3 className="text-xl font-black text-[#2c0735] mb-2">PakiPark Admin</h3>
+                  <p className="text-sm font-medium text-[#4b008f]/70 leading-6 mb-5">
+                    Oversee parking areas, reservations, bookings, live monitoring and revenue reports.
+                  </p>
+
+                  <div className="flex items-center gap-2 text-xs font-black text-[#4b008f] group-hover:gap-3 transition-all">
+                    <span>Enter Dashboard</span>
+                    <span className="text-lg leading-none">→</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Footer note */}
+              <p className="text-center text-[11px] font-bold text-[#300066]/40 mt-6">
+                Logged in as <span className="text-[#300066]/70">{placeholderName}</span> · Super Administrator · All systems accessible
+              </p>
             </div>
           </div>
         </div>

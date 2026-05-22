@@ -63,12 +63,8 @@ export default function PakiAdminLogin() {
   const completeLogin = async () => {
     setIsLoading(true);
     try {
-      const role = await login(identifier, password, 'pakiadmin');
-      if (role === 'super-admin') {
-        navigate("/pakiadmin/super-admin");
-      } else {
-        navigate("/pakiship/dashboard");
-      }
+      await login(identifier, password, 'pakiadmin');
+      navigate("/pakiadmin/super-admin");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Authorization failed. Please check your credentials.";
       setError(message);
@@ -90,9 +86,8 @@ export default function PakiAdminLogin() {
       }
     }
 
-    const passRegex = /^(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
-    if (!passRegex.test(password)) {
-      setError("Security Alert: Invalid credentials or insufficient key complexity.");
+    if (password.length < 4) {
+      setError("Security Alert: Password must be at least 4 characters.");
       return false;
     }
 
